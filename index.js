@@ -3,6 +3,7 @@ const PORT = process.env.PORT || 5000;
 let express = require('express');
 let app     = express();
 const bodyParser = require("body-parser");
+let path    = require("path");
 
 let first = true;
 
@@ -35,10 +36,8 @@ function Lock(lockID, lockName) {
   this.signal;
   
   this.qa = [];
-
-  this.commands = [];
-
   this.curQuestion = 0;
+  this.commands = [];
 }
 
 function Hub(hubID,hubName) {
@@ -194,8 +193,55 @@ app.post('/get-commands', function(req,res) {
 		return;
 	}
 
+	if(lock.commands.length > 1)
+		command.next = true;
+	else
+		command.next = false;
 
+	command = lock.commands.shift();
+	
+	res.send(JSON.stringify(command));
+	delete command.next;
+});
 
+app.get('/get-commands', function(req,res) {
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let command = {};
+
+	if(!req.query.lockID)
+	{
+		res.send("Not supported yet");
+		return;
+	}
+
+	let lock = locks.find(lock => lock.lockID == req.query.lockID);
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.query.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+	if(lock.commands.length > 1)
+		command.next = true;
+	else
+		command.next = false;
+
+	command = lock.commands.shift();
+	
+	res.send(JSON.stringify(command));
+	delete command.next;
 });
 
 
@@ -539,14 +585,8 @@ app.post('/alexa',function(req,res) {
   }
 });
 
-
-app.post('/command', function(req, res) {
-
-});
-
-
 app.get('/', function (req, res) {
-  res.render(index);
+  res.sendFile(path.join(__dirname+'/index.html'));
 
   //console.log(resp);
 });
