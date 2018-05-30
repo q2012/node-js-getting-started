@@ -103,16 +103,23 @@ app.get('/test-data', function(req,res) {
   res.sendStatus(201);
 });
 
+app.get('/locks', function(req, res) {
+	res.send(JSON.stringify(locks));
+});
 
+app.get('/hubs', function(req, res) {
+	res.send(JSON.stringify(hubs));
+});
+
+app.get('/users', function(req, res) {
+	res.send(JSON.stringify(users));
+});
 
 app.get('/hub', function(req, res) {
   if(req.query.id && hubs[req.query.id])
   {
     req.query.hubName?hubs[req.query.id].hubName = req.query.hubName:hubs[req.query.id].hubName;
     req.query.hubID?hubs[req.query.id].hubID = req.query.hubID:hubs[req.query.id].hubID;
-    res.send(JSON.stringify(hubs[req.query.id]));
-
-
     res.send(JSON.stringify(hubs[req.query.id]));
     return;
   }
