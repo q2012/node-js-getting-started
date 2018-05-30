@@ -110,6 +110,9 @@ app.post('/push-command', function(req,res) {
 	command.msg = "Command added";
 	res.send(JSON.stringify(command));
 
+	delete command.error;
+	delete command.msg;
+
 });
 
 app.get('/push-command', function(req,res) {
