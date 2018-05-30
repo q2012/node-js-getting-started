@@ -35,6 +35,9 @@ function Lock(lockID, lockName) {
   this.signal;
   
   this.qa = [];
+
+  this.commands = [];
+
   this.curQuestion = 0;
 }
 
@@ -53,6 +56,147 @@ function User(userID, amazonUID) {
 let users = [];
 let hubs = [];
 let locks = [];
+
+
+function pushCommand(lock) {
+	command 
+
+	lock.commands.push({})
+}
+
+app.post('/push-command', function(req,res) {
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let command = {};
+
+	if(!req.body.lockID)
+	{
+		res.send("Not supported yet");
+		return;
+	}
+
+	let lock = locks.find(lock => lock.lockID == req.body.lockID);
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.body.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+	req.body.lockName?command.lockName = req.body.lockName:1==1;
+	req.body.setOpen?command.setOpen = req.body.setOpen:1==1;
+	req.body.signal?command.signal = req.body.signal:1==1;
+	req.body.PIN?command.PIN = req.body.PIN:1==1;
+	req.body.mode?command.mode = req.body.mode:1==1;
+	req.body.setTimeM?command.setTimeM = req.body.setTimeM:1==1;
+	req.body.setTimeH?command.setTimeH = req.body.setTimeH:1==1;
+	req.body.setCloseTimeM?command.setCloseTimeM = req.body.setCloseTimeM:1==1;
+	req.body.setCloseTimeH?command.setCloseTimeH = req.body.setCloseTimeH:1==1;
+	req.body.setOpenTimeM?command.setOpenTimeM = req.body.setOpenTimeM:1==1;
+	req.body.setOpenTimeH?command.setOpenTimeH = req.body.setOpenTimeH:1==1;
+
+	lock.commands.push(command);
+
+	command.error = 0;
+	command.msg = "Command added";
+	res.send(JSON.stringify(command));
+
+});
+
+app.get('/push-command', function(req,res) {
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let command = {};
+
+	if(!req.query.lockID)
+	{
+		res.send("Not supported yet");
+		return;
+	}
+
+	let lock = locks.find(lock => lock.lockID == req.query.lockID);
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.query.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+	command.error = 0;
+	command.msg = "Command added";
+
+	req.query.lockName?command.lockName = req.query.lockName:1==1;
+	req.query.setOpen?command.setOpen = req.query.setOpen:1==1;
+	req.query.signal?command.signal = req.query.signal:1==1;
+	req.query.PIN?command.PIN = req.query.PIN:1==1;
+	req.query.mode?command.mode = req.query.mode:1==1;
+	req.query.setTimeM?command.setTimeM = req.query.setTimeM:1==1;
+	req.query.setTimeH?command.setTimeH = req.query.setTimeH:1==1;
+	req.query.setCloseTimeM?command.setCloseTimeM = req.query.setCloseTimeM:1==1;
+	req.query.setCloseTimeH?command.setCloseTimeH = req.query.setCloseTimeH:1==1;
+	req.query.setOpenTimeM?command.setOpenTimeM = req.query.setOpenTimeM:1==1;
+	req.query.setOpenTimeH?command.setOpenTimeH = req.query.setOpenTimeH:1==1;
+
+	lock.commands.push(command);
+
+	res.send(JSON.stringify(command));
+	delete command.error;
+	delete command.msg;
+
+});
+
+app.post('/get-commands', function(req,res) {
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let command = {};
+
+	if(!req.body.lockID)
+	{
+		res.send("Not supported yet");
+		return;
+	}
+
+	let lock = locks.find(lock => lock.lockID == req.body.lockID);
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.body.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+
+
+});
 
 
 app.get('/test-data', function(req,res) {
@@ -396,18 +540,15 @@ app.post('/alexa',function(req,res) {
 });
 
 
+app.post('/command', function(req, res) {
+
+});
+
+
 app.get('/', function (req, res) {
-  var resp = "\b";
+  res.render(index);
 
-  
-
-  res.setHeader('Access-Control-Allow-Origin','*');
-  res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS,PUT,PATCH,DELETE');
-
-  res.setHeader('Access-Control-Allow-Headers','Origin, X-Requested-With, Content-Type, Accept');
-  res.send(resp);
-
-  console.log(resp);
+  //console.log(resp);
 });
 
 // error handling
@@ -418,10 +559,10 @@ app.use(function(err, req, res, next){
 
 
 
-  users.push(new User('1'));
-  users.push(new User('2'));
-  users.push(new User('3'));
-  users.push(new User('4'));
+  users.push(new User('1', '1'));
+  users.push(new User('2', '2'));
+  users.push(new User('3', '3'));
+  users.push(new User('4', '4'));
 
   hubs.push(new Hub('1','First'));
   hubs.push(new Hub('2','Second'));
@@ -457,7 +598,6 @@ app.use(function(err, req, res, next){
 
  // console.log(JSON.stringify(users));
  // first = false;
-
 
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
