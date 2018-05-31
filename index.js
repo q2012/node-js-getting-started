@@ -7,6 +7,8 @@ let path    = require("path");
 
 let first = true;
 
+let log = "";
+
 app.use(bodyParser.urlencoded({
   extended: true
 }));
@@ -283,8 +285,10 @@ app.get('/update-lock', function(req, res) {
 	    lock.command = {};
 	    lock.setTime = new Time(0,0);
 	    lock.curQuestion = 0;
-
+	    res.send(JSON.stringify(lock));
+	    return;
 	}
+	res.sendStatus(404);
 });
 
 
@@ -424,6 +428,7 @@ app.post('/user', function(req,res) {
 });
 
 app.post('/lock', function(req,res) {
+	log += ("\n" + JSON.stringify(req.body));
   console.log(JSON.stringify(req.body));
     if(req.body.id)
     {
@@ -436,13 +441,13 @@ app.post('/lock', function(req,res) {
       req.body.shift?locks[req.body.id].shift = req.body.shift:locks[req.body.id].shift
 
       req.body.timeH?locks[req.body.id].time.h = req.body.timeH:1==1;
-    req.body.timeM?locks[req.body.id].time.m = req.body.timeM:1==1;
-    req.body.setTimeH?locks[req.body.id].setTime.h = req.body.setTimeH:1==1;
-    req.body.setTimeM?locks[req.body.id].setTime.h = req.body.setTimeM:1==1;
-    req.body.setCloseTimeH?locks[req.body.id].setCloseTime.h = req.body.setCloseTimeH:1==1;
-    req.body.setCloseTimeM?locks[req.body.id].setCloseTime.m = req.body.setCloseTimeM:1==1;
-    req.body.setOpenTimeH?locks[req.body.id].setOpenTime.h = req.body.setOpenTimeH:1==1;
-    req.body.setOpenTimeM?locks[req.body.id].setOpenTime.m = req.body.setOpenTimeM:1==1;
+	  req.body.timeM?locks[req.body.id].time.m = req.body.timeM:1==1;
+	  req.body.setTimeH?locks[req.body.id].setTime.h = req.body.setTimeH:1==1;
+	  req.body.setTimeM?locks[req.body.id].setTime.h = req.body.setTimeM:1==1;
+	  req.body.setCloseTimeH?locks[req.body.id].setCloseTime.h = req.body.setCloseTimeH:1==1;
+	  req.body.setCloseTimeM?locks[req.body.id].setCloseTime.m = req.body.setCloseTimeM:1==1;
+	  req.body.setOpenTimeH?locks[req.body.id].setOpenTime.h = req.body.setOpenTimeH:1==1;
+	  req.body.setOpenTimeM?locks[req.body.id].setOpenTime.m = req.body.setOpenTimeM:1==1;
 
       req.body.battery?locks[req.body.id].battery = req.body.battery:locks[req.body.id].battery;
       req.body.signal?locks[req.body.id].signal = req.body.signal:locks[req.body.id].signal;
@@ -455,7 +460,9 @@ app.post('/lock', function(req,res) {
 });
 
 
-
+app.get('/test-log', function(req, res) {
+	res.send(log);
+});
 
 
 app.post('/alexa',function(req,res) {
