@@ -219,7 +219,7 @@ app.post('/get-command', function(req,res) {
 		return;
 	}
 
-	updateLock((JSON.parse(JSON.stringify(req.body)), lock);
+	updateLock(JSON.parse(JSON.stringify(req.body)), lock);
 
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -252,7 +252,7 @@ app.get('/get-command', function(req,res) {
 		return;
 	}
 
-	updateLock((JSON.parse(JSON.stringify(req.query)), lock);
+	updateLock(JSON.parse(JSON.stringify(req.query)), lock);
 	
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -262,7 +262,7 @@ app.get('/update-lock', function(req, res) {
 	let lock = locks.find(lock => lock.lockID == req.query.lockID);
 	if(lock)
 	{
-		updateLock((JSON.parse(JSON.stringify(req.query)), lock);
+		updateLock(JSON.parse(JSON.stringify(req.query)), lock);
 
 	    lock.command = {};
 	    lock.setTime = new Time(0,0);
@@ -277,7 +277,7 @@ app.post('/update-lock', function(req, res) {
 	let lock = locks.find(lock => lock.lockID == req.body.lockID);
 	if(lock)
 	{
-		updateLock((JSON.parse(JSON.stringify(req.body)), lock);
+		updateLock(JSON.parse(JSON.stringify(req.body)), lock);
 
 	    lock.command = {};
 	    lock.setTime = new Time(0,0);
@@ -332,10 +332,7 @@ function writeTestData() {
   users[2].hubs[0].locks.push(locks[8]);
 };
 
-app.get('/test-data', function(req,res) {
-  writeTestData();
-
-  res.sendStatus(201);
+app.get('/test-data', function(req,res) {  writeTestData();  res.sendStatus(201);
 });
 
 app.get('/locks', function(req, res) {	res.send(JSON.stringify(locks));
