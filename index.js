@@ -7,11 +7,10 @@ let path    = require("path");
 
 let log = "";
 
-app.use(bodyParser.urlencoded({
-  extended: true
-}));
+app.use(bodyParser.urlencoded({  extended: true}));
 
-app.use(bodyParser.json());
+app.use(bodyParser.json()); 
+
 
 var MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
 
@@ -61,9 +60,40 @@ function cmp(time1,time2) {
 	return time1.h == time2.h?time1.m > time2.m:time1.h > time2.h;
 }
 
+function dateIn(cd, lowTime, highTime) {
+	return cmp(new Time(cd.getHours(),cd.getMinutes()), lowTime) && cmp(highTime, new Time(cd.getHours(),cd.getMinutes()));
+}
+
 let users = [];
 let hubs = [];
 let locks = [];
+
+function pushCommand(from, to) {
+
+	from.lockName?(to.command.lockName = from.lockName, to.lockName = from.lockName):1==1;
+	from.setOpen?(to.command.setOpen = from.setOpen, to.setOpen = from.setOpen):1==1;
+	from.signal?(to.command.signal = from.signal, to.signal = from.signal):1==1;
+	from.PIN?(to.command.PIN = from.PIN, to.PIN = from.PIN):1==1;
+	from.mode?(to.command.mode = from.mode, to.mode = from.mode):1==1;
+	
+	if(from.setTimeM && from.setTimeH) {
+		to.command.setTimeM = from.setTimeM;
+		to.setTime.m = from.setTimeM;
+		to.command.setTimeH = from.setTimeH;
+		to.setTime.h = from.setTimeH;
+
+		let cd = new Date();
+		let ms = cd.getTime();
+		cd.setHours(to.setTime.h);
+		cd.setMinutes(to.setTime.m);
+		to.shift = ms - cd.getTime();
+	}
+
+	from.setCloseTimeM?(to.command.setCloseTimeM = from.setCloseTimeM, to.setCloseTime.m = from.setCloseTimeM):1==1;
+	from.setCloseTimeH?(to.command.setCloseTimeH = from.setCloseTimeH, to.setCloseTime.h = from.setCloseTimeH):1==1;
+	from.setOpenTimeM?(to.command.setOpenTimeM = from.setOpenTimeM, to.setOpenTime.m = from.setOpenTimeM):1==1;
+	from.setOpenTimeH?(to.command.setOpenTimeH = from.setOpenTimeH, to.setOpenTime.h = from.setOpenTimeH):1==1;
+};
 
 app.post('/push-command', function(req,res) {
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
@@ -95,29 +125,7 @@ app.post('/push-command', function(req,res) {
 	lock.command.error = 0;
 	lock.command.msg = "Command added";
 
-	req.body.lockName?(lock.command.lockName = req.body.lockName, lock.lockName = req.body.lockName):1==1;
-	req.body.setOpen?(lock.command.setOpen = req.body.setOpen, lock.setOpen = req.body.setOpen):1==1;
-	req.body.signal?(lock.command.signal = req.body.signal, lock.signal = req.body.signal):1==1;
-	req.body.PIN?(lock.command.PIN = req.body.PIN, lock.PIN = req.body.PIN):1==1;
-	req.body.mode?(lock.command.mode = req.body.mode, lock.mode = req.body.mode):1==1;
-	
-	if(req.body.setTimeM && req.body.setTimeH) {
-		lock.command.setTimeM = req.body.setTimeM;
-		lock.setTime.m = req.body.setTimeM;
-		lock.command.setTimeH = req.body.setTimeH;
-		lock.setTime.h = req.body.setTimeH;
-
-		let cd = new Date();
-		let ms = cd.getTime();
-		cd.setHours(lock.setTime.h);
-		cd.setMinutes(lock.setTime.m);
-		lock.shift = ms - cd.getTime();
-	}
-
-	req.body.setCloseTimeM?(lock.command.setCloseTimeM = req.body.setCloseTimeM, lock.setCloseTime.m = req.body.setCloseTimeM):1==1;
-	req.body.setCloseTimeH?(lock.command.setCloseTimeH = req.body.setCloseTimeH, lock.setCloseTime.h = req.body.setCloseTimeH):1==1;
-	req.body.setOpenTimeM?(lock.command.setOpenTimeM = req.body.setOpenTimeM, lock.setOpenTime.m = req.body.setOpenTimeM):1==1;
-	req.body.setOpenTimeH?(lock.command.setOpenTimeH = req.body.setOpenTimeH, lock.setOpenTime.h = req.body.setOpenTimeH):1==1;
+	pushCommand(req.body, lock);
 
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
@@ -154,34 +162,35 @@ app.get('/push-command', function(req,res) {
 	lock.command.error = 0;
 	lock.command.msg = "Command added";
 
-	req.query.lockName?(lock.command.lockName = req.query.lockName, lock.lockName = req.query.lockName):1==1;
-	req.query.setOpen?(lock.command.setOpen = req.query.setOpen, lock.setOpen = req.query.setOpen):1==1;
-	req.query.signal?(lock.command.signal = req.query.signal, lock.signal = req.query.signal):1==1;
-	req.query.PIN?(lock.command.PIN = req.query.PIN, lock.PIN = req.query.PIN):1==1;
-	req.query.mode?(lock.command.mode = req.query.mode, lock.mode = req.query.mode):1==1;
-
-	if(req.query.setTimeM && req.query.setTimeH) {
-		lock.command.setTimeM = req.query.setTimeM;
-		lock.setTime.m = req.query.setTimeM;
-		lock.command.setTimeH = req.query.setTimeH;
-		lock.setTime.h = req.query.setTimeH;
-
-		let cd = new Date();
-		let ms = cd.getTime();
-		cd.setHours(lock.setTime.h);
-		cd.setMinutes(lock.setTime.m);
-		lock.shift = cd.getTime() - ms;
-	}	
-
-	req.query.setCloseTimeM?(lock.command.setCloseTimeM = req.query.setCloseTimeM, lock.setCloseTime.m = req.query.setCloseTimeM):1==1;
-	req.query.setCloseTimeH?(lock.command.setCloseTimeH = req.query.setCloseTimeH, lock.setCloseTime.h = req.query.setCloseTimeH):1==1;
-	req.query.setOpenTimeM?(lock.command.setOpenTimeM = req.query.setOpenTimeM, lock.setOpenTime.m = req.query.setOpenTimeM):1==1;
-	req.query.setOpenTimeH?(lock.command.setOpenTimeH = req.query.setOpenTimeH, lock.setOpenTime.h = req.query.setOpenTimeH):1==1;
+	pushCommand(req.body, lock);
 
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
 	delete lock.command.msg;
 });
+
+function updateLock(from, lock) {
+	from.lockName?lock.lockName = from.lockName:lock.lockName;
+    from.state?lock.state = from.state:lock.state;
+    from.mode?lock.mode = from.mode:lock.mode;
+    from.PIN?lock.PIN = from.PIN:lock.PIN;
+    from.battery?lock.battery = from.battery:lock.battery;
+
+    from.setCloseTimeH && from.setCloseTimeM?(lock.setCloseTime.h = from.setCloseTimeH, lock.setCloseTime.m = from.setCloseTimeM):1==1;
+	from.setOpenTimeH && from.setOpenTimeM?(lock.setOpenTime.h = from.setOpenTimeH, lock.setOpenTime.m = from.setOpenTimeM):1==1;
+
+	if(from.timeH && from.timeM) 
+	{
+	    lock.time.h = from.timeH;
+		lock.time.m = from.timeM;
+
+		let cd = new Date();
+		let ms = cd.getTime();
+		cd.setHours(lock.Time.h);
+		cd.setMinutes(lock.Time.m);
+		lock.shift = cd.getTime() - ms;
+	}
+};
 
 app.post('/get-command', function(req,res) {
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
@@ -210,10 +219,7 @@ app.post('/get-command', function(req,res) {
 		return;
 	}
 
-	req.query.lockName?(lock.command.lockName = req.query.lockName, lock.lockName = req.query.lockName):1==1;
-	req.query.lockName?(lock.command.lockName = req.query.lockName, lock.lockName = req.query.lockName):1==1;
-	req.query.lockName?(lock.command.lockName = req.query.lockName, lock.lockName = req.query.lockName):1==1;
-	req.query.lockName?(lock.command.lockName = req.query.lockName, lock.lockName = req.query.lockName):1==1;
+	updateLock(req.body, lock);
 
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -246,10 +252,7 @@ app.get('/get-command', function(req,res) {
 		return;
 	}
 
-	req.query.battery?lock.battery = req.query.battery:1==1;
-	req.query.state?lock.state = req.query.state:1==1;
-	req.query.timeM?lock.time.m = req.query.timeM:1==1;
-	req.query.timeH?lock.time.h = req.query.timeH:1==1;
+	updateLock(req.query, lock);
 	
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -259,26 +262,7 @@ app.get('/update-lock', function(req, res) {
 	let lock = locks.find(lock => lock.lockID == req.query.lockID);
 	if(lock)
 	{
-		req.query.lockName?lock.lockName = req.query.lockName:lock.lockName;
-    	req.query.state?lock.state = req.query.state:lock.state;
-    	req.query.mode?lock.mode = req.query.mode:lock.mode;
-    	req.query.PIN?lock.PIN = req.query.PIN:lock.PIN;
-    	req.query.battery?lock.battery = req.query.battery:lock.battery;
-
-    	req.query.setCloseTimeH && req.query.setCloseTimeM?(lock.setCloseTime.h = req.query.setCloseTimeH, lock.setCloseTime.m = req.query.setCloseTimeM):1==1;
-	    req.query.setOpenTimeH && req.query.setOpenTimeM?(lock.setOpenTime.h = req.query.setOpenTimeH, lock.setOpenTime.m = req.query.setOpenTimeM):1==1;
-
-	    if(req.query.timeH && req.query.timeM) 
-	    {
-		    locks.time.h = req.query.timeH;
-	    	lock.time.m = req.query.timeM;
-
-	    	let cd = new Date();
-			let ms = cd.getTime();
-			cd.setHours(lock.Time.h);
-			cd.setMinutes(lock.Time.m);
-			lock.shift = cd.getTime() - ms;
-	    }
+		updateLock(req.query, lock);
 
 	    lock.command = {};
 	    lock.setTime = new Time(0,0);
@@ -290,7 +274,7 @@ app.get('/update-lock', function(req, res) {
 });
 
 
-app.get('/test-data', function(req,res) {
+function writeTestData() {
   users = [];
   locks = [];
   hubs = [];
@@ -331,20 +315,21 @@ app.get('/test-data', function(req,res) {
   users[1].hubs[1].locks.push(locks[6]);
   users[1].hubs[1].locks.push(locks[7]);
   users[2].hubs[0].locks.push(locks[8]);
+};
+
+app.get('/test-data', function(req,res) {
+  writeTestData();
 
   res.sendStatus(201);
 });
 
-app.get('/locks', function(req, res) {
-	res.send(JSON.stringify(locks));
+app.get('/locks', function(req, res) {	res.send(JSON.stringify(locks));
 });
 
-app.get('/hubs', function(req, res) {
-	res.send(JSON.stringify(hubs));
+app.get('/hubs', function(req, res) {	res.send(JSON.stringify(hubs));
 });
 
-app.get('/users', function(req, res) {
-	res.send(JSON.stringify(users));
+app.get('/users', function(req, res) {	res.send(JSON.stringify(users));
 });
 
 app.get('/hub', function(req, res) {
@@ -423,8 +408,9 @@ app.post('/user', function(req,res) {
 });
 
 app.post('/lock', function(req,res) {
-	log += ("\n" + JSON.stringify(req.body));
-  console.log(JSON.stringify(req.body));
+
+	log += (" " + JSON.stringify(req.body));
+    console.log(JSON.stringify(req.body));
     if(req.body.id)
     {
       req.body.lockID?locks[req.body.id].lockID = req.body.lockID:locks[req.body.id].lockID;
@@ -466,25 +452,27 @@ app.post('/alexa',function(req,res) {
     let user = users.find(user => user.amazonUID == req.body.amazonUID);
     if(!user)
     {
-      res.send(JSON.stringify({"succ": false, "message": "user not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 1,"message": "user not found"}));
       return;
     }
 
     let hub = user.hubs.find(hub => hub.hubName == req.body.hubName);
     if(!hub)
     {
-      res.send(JSON.stringify({"succ": false, "message": "hub not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 2, "message": "hub not found"}));
       return;
     }
 
     let lock = hub.locks.find(lock => lock.lockName == req.body.deviceName);
     if(!lock)
     {
-      res.send(JSON.stringify({"succ": false, "message": "lock not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 3, "message": "lock not found"}));
       return;
     }
 
-    if(lock.mode == MODE.fitness)
+    let cd = new Date();
+
+    if(lock.mode == MODE.fitness && cmp(new Time ))
     {
       if(lock.curQuestion < lock.qa.length)
       {
@@ -493,23 +481,23 @@ app.post('/alexa',function(req,res) {
           ++lock.curQuestion;
           if(lock.curQuestion < lock.qa.length)
           {
-            res.send({"succ":true,"question": lock.qa[lock.curQuestion].key});
+            res.send({"succ":true, "error": 0, "question": lock.qa[lock.curQuestion].key});
             return;
           }
         }
         else if(!req.body.answer)
         {
-          res.send({"succ": false, "message": "No answer", "question": lock.qa[lock.curQuestion].key});
+          res.send({"succ": false, "error": 4, "message": "No answer", "question": lock.qa[lock.curQuestion].key});
           return;
         }
         else if(!(req.body.answer == lock.qa[lock.curQuestion].val))
         {
-          res.send({"succ": false, "message": "Wrong answer", "question": lock.qa[lock.curQuestion].key});
+          res.send({"succ": false, "error": 5, "message": "Wrong answer", "question": lock.qa[lock.curQuestion].key});
           return;
         }
         else
         {
-          res.send({"succ": false, "message": "Something wrong. Try again.", "question": lock.qa[lock.curQuestion].key});
+          res.send({"succ": false, "error": 255, "message": "Something wrong. Try again.", "question": lock.qa[lock.curQuestion].key});
           return;
         }
       }
@@ -541,7 +529,7 @@ app.post('/alexa',function(req,res) {
       else if(req.body.addQuestion && req.body.addAnswer)
         lock.qa.push(new Pair(req.body.addQuestion,req.body.addAnswer));
 
-      res.send(JSON.stringify({"succ": true, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
+      res.send(JSON.stringify({"succ": true, "error": 0, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
       return;
     }
     else if(lock.mode = MODE.family)
@@ -550,15 +538,15 @@ app.post('/alexa',function(req,res) {
       {
         if(!req.body.PIN)
         {
-          res.send({"succ": false, "message": "No PIN"});
+          res.send({"succ": false, "error": 6, "message": "No PIN"});
           return;
         }
         else if(req.body.PIN != lock.PIN)
         {
-          res.send({"succ": false, "message": "Wrong PIN"});
+          res.send({"succ": false, "error": 7, "message": "Wrong PIN"});
           return;
         }
-        res.send({"succ": false, "message": "Something wrong."});
+        res.send({"succ": false, "error": 255, "message": "Something wrong."});
         return;
       }
       
@@ -587,7 +575,7 @@ app.post('/alexa',function(req,res) {
         lock.curQuestion = 0;
       }
 
-      res.send(JSON.stringify({"succ": true, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
+      res.send(JSON.stringify({"succ": true, "error": 0, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
       return;
     }
     else if(lock.mode = MODE.biohack)
@@ -595,7 +583,7 @@ app.post('/alexa',function(req,res) {
       let curTime = new Date().getTime();
       if((curTime - lock.shift) > lock.setCloseTime.getTime() || (curTime - lock.shift) < lock.setOpenTime.getTime())
       {
-        res.send({"succ": false, "message": "Not in time", "closeTime": lock.setCloseTime.getTime(), "openTime": lock.setOpenTime.getTime(), "curServTime": new Date().get});
+        res.send({"succ": false, "error": 8, "message": "Not in time", "closeTime": lock.setCloseTime.getTime(), "openTime": lock.setOpenTime.getTime(), "curServTime": new Date().get});
         return;
       }
 
@@ -624,14 +612,13 @@ app.post('/alexa',function(req,res) {
         lock.setCloseTime.setTime(req.body.setCloseTime);
       }
 
-      res.send(JSON.stringify({"succ": true, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
+      res.send(JSON.stringify({"succ": true, "error": 0, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
     }
 
   }
 });
 
-app.get('/', function (req, res) {
-  res.sendFile(path.join(__dirname+'/index.html'));
+app.get('/', function (req, res) {  res.sendFile(path.join(__dirname+'/index.html'));
 });
 
 // error handling
@@ -641,43 +628,7 @@ app.use(function(err, req, res, next){
 });
 
 
-
-  users.push(new User('1', '1'));
-  users.push(new User('2', '2'));
-  users.push(new User('3', '3'));
-  users.push(new User('4', '4'));
-
-  hubs.push(new Hub('1','First'));
-  hubs.push(new Hub('2','Second'));
-  hubs.push(new Hub('3','First'));
-  hubs.push(new Hub('4','Second'));
-  hubs.push(new Hub('5','First'));
-
-  locks.push(new Lock('1','First'));
-  locks.push(new Lock('2','Second'));
-  locks.push(new Lock('3','First'));
-  locks.push(new Lock('4','First'));
-  locks.push(new Lock('5','Second'));
-  locks.push(new Lock('6','Third'));
-  locks.push(new Lock('7','First'));
-  locks.push(new Lock('8','Second'));
-  locks.push(new Lock('9','First'));
-
-  users[0].hubs.push(hubs[0]);
-  users[0].hubs.push(hubs[1]);
-  users[1].hubs.push(hubs[2]);
-  users[1].hubs.push(hubs[3]);
-  users[2].hubs.push(hubs[4]);
-
-  users[0].hubs[0].locks.push(locks[0]);
-  users[0].hubs[0].locks.push(locks[1]);
-  users[0].hubs[1].locks.push(locks[2]);
-  users[1].hubs[0].locks.push(locks[3]);
-  users[1].hubs[0].locks.push(locks[4]);
-  users[1].hubs[0].locks.push(locks[5]);
-  users[1].hubs[1].locks.push(locks[6]);
-  users[1].hubs[1].locks.push(locks[7]);
-  users[2].hubs[0].locks.push(locks[8]);
+writeTestData();
 
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`));
 

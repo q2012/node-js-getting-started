@@ -12,8 +12,10 @@
   },
   "dependencies": {
     "body-parser": "^1.18.3",
+    "content-type": "^1.0.4",
     "ejs": "^2.5.6",
-    "express": "^4.15.2"
+    "express": "^4.15.2",
+    "raw-body": "^2.3.3"
   },
   "devDependencies": {
     "request": "^2.81.0",
