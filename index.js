@@ -5,8 +5,6 @@ let app     = express();
 const bodyParser = require("body-parser");
 let path    = require("path");
 
-let first = true;
-
 let log = "";
 
 app.use(bodyParser.urlencoded({
@@ -334,9 +332,6 @@ app.get('/test-data', function(req,res) {
   users[1].hubs[1].locks.push(locks[7]);
   users[2].hubs[0].locks.push(locks[8]);
 
- // console.log(JSON.stringify(users));
- // first = false;
-
   res.sendStatus(201);
 });
 
@@ -428,7 +423,7 @@ app.post('/user', function(req,res) {
 });
 
 app.post('/lock', function(req,res) {
-	log += ("\n" + JSON.stringify(req.body));
+	log += ("\n" + JSON.stringify(req));
   console.log(JSON.stringify(req.body));
     if(req.body.id)
     {
@@ -637,8 +632,6 @@ app.post('/alexa',function(req,res) {
 
 app.get('/', function (req, res) {
   res.sendFile(path.join(__dirname+'/index.html'));
-
-  //console.log(resp);
 });
 
 // error handling
@@ -686,18 +679,6 @@ app.use(function(err, req, res, next){
   users[1].hubs[1].locks.push(locks[7]);
   users[2].hubs[0].locks.push(locks[8]);
 
- // console.log(JSON.stringify(users));
- // first = false;
-
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
 module.exports = app ;
-
-/*
-express()
-  .use(express.static(path.join(__dirname, 'public')))
-  .set('views', path.join(__dirname, 'views'))
-  .set('view engine', 'ejs')
-  .get('/', (req, res) => res.render('pages/index'))
-  .listen(PORT, () => console.log(`Listening on ${ PORT }`))
-*/
