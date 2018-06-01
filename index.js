@@ -483,10 +483,12 @@ app.post('/alexa',function(req,res) {
     }
 
     let cd = new Date();
+	cd.setTime() = cd.getTime() + lock.shift;
 
-    if(lock.mode == MODE.fitness && cmp(new Time ))
+    if(lock.mode == MODE.fitness)
     {
-      if(lock.curQuestion < lock.qa.length)
+      
+      if(lock.curQuestion < lock.qa.length  && dateIn(new Time(cd.getHours(),cd.getMinutes()), lock.setCloseTime, lock.setOpenTime))
       {
         if(req.body.answer && req.body.answer == lock.qa[lock.curQuestion].val)
         {
@@ -515,28 +517,39 @@ app.post('/alexa',function(req,res) {
       }
       lock.curQuestion = 0;
 
-      if(req.body.time)
+      if(req.body.timeH && req.body.timeM)
       {
-        lock.setTime.setTime(req.body.time);
-        lock.shift = (new Date()).getTime()-req.body.time;
+        lock.time.h = req.body.timeH;
+		lock.time.m = req.body.timeM;
+        let cd = new Date();
+		let ms = cd.getTime();
+		cd.setHours(lock.Time.h);
+		cd.setMinutes(lock.Time.m);
+		lock.shift = cd.getTime() - ms;
       }
-      req.body.setOpenTime?lock.setOpenTime.setTime(req.body.setOpenTime):lock.setOpenTime;
-      req.body.setCloseTime?lock.setCloseTime.setTime(req.body.setCloseTime):lock.setCloseTime;
+
+      req.body.setCloseTimeH && req.body.setCloseTimeM?(lock.setCloseTime.h = req.body.setCloseTimeH, lock.setCloseTime.m = req.body.setCloseTimeM):1==1;
+	  req.body.setOpenTimeH && req.body.setOpenTimeM?(lock.setOpenTime.h = req.body.setOpenTimeH, lock.setOpenTime.m = req.body.setOpenTimeM):1==1;
+
       req.body.open?lock.setOpen = req.body.open:lock.setOpen;
       req.body.signalFind?lock.signal = req.body.signalFind:lock.signal;
 
-      if(req.body.setMode == MODE.family && req.body.setPIN && req.body.setOpenTime && req.body.setCloseTime)
+      if(req.body.setMode == MODE.family && req.body.setPIN && req.body.setOpenTimeH && req.body.setOpenTimeM && req.body.setCloseTimeH && req.body.setCloseTimeM)
       {
         lock.mode = req.body.setMode;
         lock.PIN = req.body.setPIN;
-        lock.setOpenTime.setTime(req.body.setOpenTime);
-        lock.setCloseTime.setTime(req.body.setCloseTime);
+        lock.setCloseTime.h = req.body.setCloseTimeH;
+        lock.setCloseTime.m = req.body.setCloseTimeM;
+        lock.setOpenTime.h = req.body.setOpenTimeH;
+        lock.setOpenTime.m = req.body.setOpenTimeM;
       }
-      else if(req.body.setMode == MODE.biohack && req.body.setOpenTime && req.body.setCloseTime)
+      else if(req.body.setMode == MODE.biohack && req.body.setOpenTimeH && req.body.setOpenTimeM && req.body.setCloseTimeH && req.body.setCloseTimeM)
       {
         lock.mode = req.body.setMode;
-        lock.setOpenTime.setTime(req.body.setOpenTime);
-        lock.setCloseTime.setTime(req.body.setCloseTime);
+        lock.setCloseTime.h = req.body.setCloseTimeH;
+        lock.setCloseTime.m = req.body.setCloseTimeM;
+        lock.setOpenTime.h = req.body.setOpenTimeH;
+        lock.setOpenTime.m = req.body.setOpenTimeM;
       }
       else if(req.body.addQuestion && req.body.addAnswer)
         lock.qa.push(new Pair(req.body.addQuestion,req.body.addAnswer));
@@ -546,7 +559,7 @@ app.post('/alexa',function(req,res) {
     }
     else if(lock.mode = MODE.family)
     {
-      if((new Date().getTime() - lock.shift) > lock.setCloseTime.getTime() || (new Date().getTime() - lock.shift) < lock.setOpenTime.getTime())
+      if(dateIn(new Time(cd.getHours(),cd.getMinutes()), lock.setCloseTime, lock.setOpenTime))
       {
         if(!req.body.PIN)
         {
@@ -562,23 +575,30 @@ app.post('/alexa',function(req,res) {
         return;
       }
       
-      if(req.body.time)
+      if(req.body.timeH && req.body.timeM)
       {
-        lock.setTime.setTime(req.body.time);
-        lock.shift = (new Date()).getTime()-req.body.time;
+        lock.time.h = req.body.timeH;
+		lock.time.m = req.body.timeM;
+        let cd = new Date();
+		let ms = cd.getTime();
+		cd.setHours(lock.Time.h);
+		cd.setMinutes(lock.Time.m);
+		lock.shift = cd.getTime() - ms;
       }
 
-      req.body.setOpenTime?lock.setOpenTime.setTime(req.body.setOpenTime):lock.setOpenTime;
-      req.body.setCloseTime?lock.setCloseTime.setTime(req.body.setCloseTime):lock.setCloseTime;
+      req.body.setCloseTimeH && req.body.setCloseTimeM?(lock.setCloseTime.h = req.body.setCloseTimeH, lock.setCloseTime.m = req.body.setCloseTimeM):1==1;
+	  req.body.setOpenTimeH && req.body.setOpenTimeM?(lock.setOpenTime.h = req.body.setOpenTimeH, lock.setOpenTime.m = req.body.setOpenTimeM):1==1;
       req.body.open?lock.setOpen = req.body.open:lock.setOpen;
       req.body.signalFind?lock.signal = req.body.signalFind:lock.signal;
       req.body.setPIN?lock.PIN = req.body.setPIN:lock.PIN;
 
-      if(req.body.setMode == MODE.biohack && req.body.setOpenTime && req.body.setCloseTime)
+      if(req.body.setMode == MODE.biohack && req.body.setOpenTimeH && req.body.setOpenTimeM && req.body.setCloseTimeH && req.body.setCloseTimeM)
       {
         lock.mode = req.body.setMode;
-        lock.setOpenTime.setTime(req.body.setOpenTime);
-        lock.setCloseTime.setTime(req.body.setCloseTime);
+        lock.setCloseTime.h = req.body.setCloseTimeH;
+        lock.setCloseTime.m = req.body.setCloseTimeM;
+        lock.setOpenTime.h = req.body.setOpenTimeH;
+        lock.setOpenTime.m = req.body.setOpenTimeM;
       }
       else if(req.body.setMode == MODE.fitness)
       {
@@ -592,21 +612,25 @@ app.post('/alexa',function(req,res) {
     }
     else if(lock.mode = MODE.biohack)
     {
-      let curTime = new Date().getTime();
-      if((curTime - lock.shift) > lock.setCloseTime.getTime() || (curTime - lock.shift) < lock.setOpenTime.getTime())
+      if(dateIn(new Time(cd.getHours(),cd.getMinutes()), lock.setCloseTime, lock.setOpenTime))
       {
-        res.send({"succ": false, "error": 8, "message": "Not in time", "closeTime": lock.setCloseTime.getTime(), "openTime": lock.setOpenTime.getTime(), "curServTime": new Date().get});
+        res.send({"succ": false, "error": 8, "message": "Not in time", "closeTime": JSON.stringify(lock.setCloseTime) , "openTime": JSON.stringify(lock.setOpenTime), "curServTime": JSON.stringify(lock.time)});
         return;
       }
 
-      if(req.body.time)
+      if(req.body.timeH && req.body.timeM)
       {
-        lock.setTime.setTime(req.body.time);
-        lock.shift = (new Date()).getTime()-req.body.time;
+        lock.time.h = req.body.timeH;
+		lock.time.m = req.body.timeM;
+        let cd = new Date();
+		let ms = cd.getTime();
+		cd.setHours(lock.Time.h);
+		cd.setMinutes(lock.Time.m);
+		lock.shift = cd.getTime() - ms;
       }
 
-      req.body.setOpenTime?lock.setOpenTime.setTime(req.body.setOpenTime):lock.setOpenTime;
-      req.body.setCloseTime?lock.setCloseTime.setTime(req.body.setCloseTime):lock.setCloseTime;
+      req.body.setCloseTimeH && req.body.setCloseTimeM?(lock.setCloseTime.h = req.body.setCloseTimeH, lock.setCloseTime.m = req.body.setCloseTimeM):1==1;
+	  req.body.setOpenTimeH && req.body.setOpenTimeM?(lock.setOpenTime.h = req.body.setOpenTimeH, lock.setOpenTime.m = req.body.setOpenTimeM):1==1;
       req.body.open?lock.setOpen = req.body.open:lock.setOpen;
       req.body.signalFind?lock.signal = req.body.signalFind:lock.signal;
 
@@ -616,12 +640,14 @@ app.post('/alexa',function(req,res) {
         lock.qa = [];
         lock.curQuestion = 0;
       }
-      else if(req.body.setMode == MODE.family && req.body.setPIN && req.body.setOpenTime && req.body.setCloseTime)
+      else if(req.body.setMode == MODE.family && req.body.setPIN  && req.body.setOpenTimeH && req.body.setOpenTimeM && req.body.setCloseTimeH && req.body.setCloseTimeM)
       {
         lock.mode = req.body.setMode;
         lock.PIN = req.body.setPIN;
-        lock.setOpenTime.setTime(req.body.setOpenTime);
-        lock.setCloseTime.setTime(req.body.setCloseTime);
+        lock.setCloseTime.h = req.body.setCloseTimeH;
+        lock.setCloseTime.m = req.body.setCloseTimeM;
+        lock.setOpenTime.h = req.body.setOpenTimeH;
+        lock.setOpenTime.m = req.body.setOpenTimeM;
       }
 
       res.send(JSON.stringify({"succ": true, "error": 0, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
