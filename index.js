@@ -60,8 +60,8 @@ function cmp(time1,time2) {
 	return time1.h == time2.h?time1.m > time2.m:time1.h > time2.h;
 }
 
-function dateIn(cd, lowTime, highTime) {
-	return cmp(new Time(cd.getHours(),cd.getMinutes()), lowTime) && cmp(highTime, new Time(cd.getHours(),cd.getMinutes()));
+function dateIn(time, lowTime, highTime) {
+	return cmp(time, lowTime) && cmp(highTime, time);
 }
 
 let users = [];
@@ -125,7 +125,7 @@ app.post('/push-command', function(req,res) {
 	lock.command.error = 0;
 	lock.command.msg = "Command added";
 
-	pushCommand(req.body, lock);
+	pushCommand(JSON.parse(JSON.stringify(req.body)), lock);
 
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
@@ -162,7 +162,7 @@ app.get('/push-command', function(req,res) {
 	lock.command.error = 0;
 	lock.command.msg = "Command added";
 
-	pushCommand(req.body, lock);
+	pushCommand(JSON.parse(JSON.stringify(req.query)), lock);
 
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
@@ -219,7 +219,7 @@ app.post('/get-command', function(req,res) {
 		return;
 	}
 
-	updateLock(req.body, lock);
+	updateLock((JSON.parse(JSON.stringify(req.body)), lock);
 
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -252,7 +252,7 @@ app.get('/get-command', function(req,res) {
 		return;
 	}
 
-	updateLock(req.query, lock);
+	updateLock((JSON.parse(JSON.stringify(req.query)), lock);
 	
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
@@ -262,7 +262,22 @@ app.get('/update-lock', function(req, res) {
 	let lock = locks.find(lock => lock.lockID == req.query.lockID);
 	if(lock)
 	{
-		updateLock(req.query, lock);
+		updateLock((JSON.parse(JSON.stringify(req.query)), lock);
+
+	    lock.command = {};
+	    lock.setTime = new Time(0,0);
+	    lock.curQuestion = 0;
+	    res.send(JSON.stringify(lock));
+	    return;
+	}
+	res.sendStatus(404);
+});
+
+app.post('/update-lock', function(req, res) {
+	let lock = locks.find(lock => lock.lockID == req.body.lockID);
+	if(lock)
+	{
+		updateLock((JSON.parse(JSON.stringify(req.body)), lock);
 
 	    lock.command = {};
 	    lock.setTime = new Time(0,0);
@@ -614,7 +629,6 @@ app.post('/alexa',function(req,res) {
 
       res.send(JSON.stringify({"succ": true, "error": 0, "state": lock.state, "curTime": lock.time, "battery": lock.battery}));
     }
-
   }
 });
 
