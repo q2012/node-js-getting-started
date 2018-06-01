@@ -423,7 +423,7 @@ app.post('/user', function(req,res) {
 });
 
 app.post('/lock', function(req,res) {
-	log += ("\n" + JSON.stringify(req));
+	log += ("\n" + JSON.stringify(req.body));
   console.log(JSON.stringify(req.body));
     if(req.body.id)
     {
