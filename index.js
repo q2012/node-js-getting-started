@@ -462,7 +462,7 @@ app.post('/lock', function(req,res) {
 });
 
 
-app.get('/test-log', function(req, res) {	res.send("<html><body>" + log + "</body></html>");
+app.get('/test-log', function(req, res) {  req.query.log?log = "":res.send("<html><body>" + log + "</body></html>");
 });
 
 
