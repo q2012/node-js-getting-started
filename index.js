@@ -96,6 +96,7 @@ function pushCommand(from, to) {
 };
 
 app.post('/push-command', function(req,res) {
+  log += ("/push-command " + JSON.stringify(req.body) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
@@ -133,6 +134,7 @@ app.post('/push-command', function(req,res) {
 });
 
 app.get('/push-command', function(req,res) {
+  log += ("/push-command " + JSON.stringify(req.query) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
 	{
@@ -193,6 +195,7 @@ function updateLock(from, lock) {
 };
 
 app.post('/get-command', function(req,res) {
+  log += ("/get-command " + JSON.stringify(req.body) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
@@ -226,6 +229,7 @@ app.post('/get-command', function(req,res) {
 });
 
 app.get('/get-command', function(req,res) {
+  log += ("/get-command " + JSON.stringify(req.query) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
 	{
@@ -259,6 +263,7 @@ app.get('/get-command', function(req,res) {
 });
 
 app.get('/update-lock', function(req, res) {
+  log += ("/update-lock " + JSON.stringify(req.query) + "</br>");
 	let lock = locks.find(lock => lock.lockID == req.query.lockID);
 	if(lock)
 	{
@@ -274,6 +279,7 @@ app.get('/update-lock', function(req, res) {
 });
 
 app.post('/update-lock', function(req, res) {
+  log += ("/update-lock " + JSON.stringify(req.body) + "</br>");
 	let lock = locks.find(lock => lock.lockID == req.body.lockID);
 	if(lock)
 	{
@@ -332,7 +338,7 @@ function writeTestData() {
   users[2].hubs[0].locks.push(locks[8]);
 };
 
-app.get('/test-data', function(req,res) {  writeTestData();  res.sendStatus(201);
+app.get('/test-data', function(req,res) {  log += ("/test-data " + JSON.stringify(req.query) + "</br>"); writeTestData();  res.sendStatus(201);
 });
 
 app.get('/locks', function(req, res) {	res.send(JSON.stringify(locks));
@@ -345,6 +351,7 @@ app.get('/users', function(req, res) {	res.send(JSON.stringify(users));
 });
 
 app.get('/hub', function(req, res) {
+  log += ("/hub " + JSON.stringify(req.query) + "</br>");
   if(req.query.id && hubs[req.query.id])
   {
     req.query.hubName?hubs[req.query.id].hubName = req.query.hubName:hubs[req.query.id].hubName;
@@ -356,6 +363,7 @@ app.get('/hub', function(req, res) {
 });
 
 app.get('/lock', function(req, res) {
+  log += ("/lock " + JSON.stringify(req.query) + "</br>");
   if(req.query.id && locks[req.query.id])
   {
     req.query.lockID?locks[req.query.id].lockID = req.query.lockID:locks[req.query.id].lockID;
@@ -387,6 +395,7 @@ app.get('/lock', function(req, res) {
 });
 
 app.get('/user', function(req, res) {
+  log += ("/user " + JSON.stringify(req.query) + "</br>");
   if(req.query.id && users[req.query.id])
   {
     req.query.userID?users[req.query.id].userID = req.query.userID:users[req.query.id].userID;
@@ -398,6 +407,7 @@ app.get('/user', function(req, res) {
 });
 
 app.post('/hub', function(req,res) {
+  log += ("/hub " + JSON.stringify(req.body) + "</br>");
     if(req.body.id && hubs[req.body.id])
     {
       req.body.hubName?hubs[req.body.id].hubName = req.body.hubName:hubs[req.body.id].hubName;
@@ -409,7 +419,7 @@ app.post('/hub', function(req,res) {
 });
 
 app.post('/user', function(req,res) {
-  console.log(req.body.id + " " + users[req.body.id]);
+  log += ("/user " + JSON.stringify(req.body) + "</br>");
     if(req.body.id && users[req.body.id])
     {
       req.body.amazonUID?users[req.body.id].amazonUID = req.body.amazonUID:users[req.body.id].amazonUID;
@@ -421,8 +431,7 @@ app.post('/user', function(req,res) {
 
 app.post('/lock', function(req,res) {
 
-	log += (" " + JSON.stringify(req.body));
-    console.log(JSON.stringify(req.body));
+	log += ("/lock " + JSON.stringify(req.body) + "</br>");
     if(req.body.id)
     {
       req.body.lockID?locks[req.body.id].lockID = req.body.lockID:locks[req.body.id].lockID;
@@ -453,12 +462,12 @@ app.post('/lock', function(req,res) {
 });
 
 
-app.get('/test-log', function(req, res) {
-	res.send(log);
+app.get('/test-log', function(req, res) {	res.send("<html><body>" + log + "</body></html>");
 });
 
 
 app.post('/alexa',function(req,res) {
+  log += ("/alexa " + JSON.stringify(req.body) + "</br>");
   if(req.body.amazonUID)
   {
     let user = users.find(user => user.amazonUID == req.body.amazonUID);
@@ -659,9 +668,7 @@ app.get('/', function (req, res) {  res.sendFile(path.join(__dirname+'/index.htm
 });
 
 // error handling
-app.use(function(err, req, res, next){
-  console.error(err.stack);
-  res.status(500).send('Something bad happened!');
+app.use(function(err, req, res, next){  console.error(err.stack);  res.status(500).send('Something bad happened!');
 });
 
 
