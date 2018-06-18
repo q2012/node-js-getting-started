@@ -1,3 +1,5 @@
+let curErr = 10;
+
 const PORT = process.env.PORT || 5000;
 
 let express = require('express');
@@ -5,11 +7,21 @@ let app     = express();
 const bodyParser = require("body-parser");
 let path    = require("path");
 
+let multer = require('multer');
+let upload = multer();
+let uploadedBuffer;
+let testBuffer;
+
+let pressButt = 0;
+
+
 let log = "";
+
 
 app.use(bodyParser.urlencoded({  extended: true}));
 
 app.use(bodyParser.json()); 
+app.use(bodyParser.text()); 
 
 
 var MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
@@ -34,6 +46,9 @@ function Lock(lockID, lockName) {
   this.battery = '100';  
   this.signal;
   
+  this.closeTime = [];
+  this.openTime = [];
+
   this.qa = [];
   this.curQuestion = 0;
   this.command = {};
@@ -68,6 +83,111 @@ let users = [];
 let hubs = [];
 let locks = [];
 
+
+app.get('/hub/register', function(req, res) {
+	if(!req.query.hubID || !req.query.userID)
+	{
+		res.send({"error": 9, "msg": "Not enough data"});
+		return;
+	}
+	let user = users.find(us => us.userID == req.query.userID);
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!user)
+	{
+		res.send({"error": 1, "msg": "User not found"});
+		return;
+	}
+	if(hub)
+	{
+		res.send({"error": 10, "msg": "Hub with this ID already exists"});
+		return;
+	}
+
+	hub = new Hub(req.query.hubID, "");
+	hubs.push(hub);
+	user.hubs.push(hub);
+	res.send({"error": 0, "msg": "Hub registred successfully"});
+});
+
+app.post('/hub/register', function(req, res) {
+	if(!req.body.hubID || !req.body.userID)
+	{
+		res.send({"error": 9, "msg": "Not enough data"});
+		return;
+	}
+	let user = users.find(us => us.userID == req.body.userID);
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+
+	if(!user)
+	{
+		res.send({"error": 1, "msg": "User not found"})
+	}
+	if(hub)
+	{
+		res.send({"error": 10, "msg": "Hub with this ID already exists"});
+		return;
+	}
+
+	hub = new Hub(req.body.hubID, "");
+
+	hubs.push(hub);
+	user.hubs.push(hub);
+	res.send({"error": 0, "msg": "Hub registred successfully"});
+});
+
+app.get('/lock/register', function(req, res) {
+	if(!req.query.lockID || !req.query.hubID)
+	{
+		res.send({"error": 9, "msg": "Not enough data"});
+		return;
+	}
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	let lock = locks.find(lock => lock.lockID == req.query.lockID);
+
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	if(lock)
+	{
+		res.send({"error": 10, "msg": "Lock with this ID already exists"});
+		return;
+	}
+
+	lock = new Lock(req.query.lockID, "");
+
+	locks.push(lock);
+	hub.locks.push(lock);
+	res.send({"error": 0, "msg": "Lock registred successfully"});
+});
+
+app.post('/lock/register', function(req, res) {
+	if(!req.body.lockID || !req.body.hubID)
+	{
+		res.send({"error": 9, "msg": "Not enough data"});
+		return;
+	}
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	let lock = locks.find(lock => lock.lockID == req.body.lockID);
+
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"})
+	}
+	if(lock)
+	{
+		res.send({"error": 10, "msg": "Lock with this ID already exists"});
+		return;
+	}
+
+	lock = new Lock(req.body.lockID, "");
+
+	locks.push(lock);
+	hub.locks.push(lock);
+	res.send({"error": 0, "msg": "Lock registred successfully"});
+});
+
 function pushCommand(from, to) {
 
 	from.lockName?(to.command.lockName = from.lockName, to.lockName = from.lockName):1==1;
@@ -93,6 +213,55 @@ function pushCommand(from, to) {
 	from.setCloseTimeH?(to.command.setCloseTimeH = from.setCloseTimeH, to.setCloseTime.h = from.setCloseTimeH):1==1;
 	from.setOpenTimeM?(to.command.setOpenTimeM = from.setOpenTimeM, to.setOpenTime.m = from.setOpenTimeM):1==1;
 	from.setOpenTimeH?(to.command.setOpenTimeH = from.setOpenTimeH, to.setOpenTime.h = from.setOpenTimeH):1==1;
+
+	if(to.closeTime.filter(time => time.n == from.setCloseTimeN).length < 4)
+	{
+		if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && to.closeTime.length < 4)
+		{
+			let closeTime = {h: from.setCloseTimeH, m: from.setCloseTimeM, n: from.setCloseTimeN};
+			to.closeTime.push(closeTime);
+			let resH = "" + closeTime.n;
+			let resM = "" + closeTime.n;
+			let i=0;
+
+			to.closeTime.forEach(time => {resH+=(time.h<10?"0"+time.h:time.h);resM+=(time.m<10?"0"+time.m:time.m); ++i;});
+			while(i < 4)
+			{
+				resH+="99";
+				resH+="99";
+				++i;
+			}
+
+			to.command.sunLockTimeH = res;
+			to.command.sunLockTimeM = res;
+		}
+	}
+	
+	if(to.openTime.filter(time => time.n == from.setOpenTimeN).length < 4)
+	{
+		if(from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && to.openTime.length < 4)
+		{
+			let openTime = {h: from.setOpenTimeH, m: from.setOpenTimeM, n: from.setOpenTimeN}
+			to.openTime.push(openTime);
+
+			let resH = "" + openTime.n;
+			let resM = "" + openTime.n;
+			let i=0;
+
+			to.openTime.forEach(time => {resH+=(time.h<10?"0"+time.h:time.h); resM+=(time.m<10?"0"+time.m:time.m); ++i;});
+			while(i < 4)
+			{
+				resH+="99";
+				resM+="99";
+				++i;
+			}
+
+			to.command.sunUnlockTimeH = res;
+			to.command.sunUnlockTimeM = res;
+		}
+	}
+
+	from.updateLock?to.command.updateLock = 1:1==1;
 };
 
 app.post('/push-command', function(req,res) {
@@ -473,21 +642,21 @@ app.post('/alexa',function(req,res) {
     let user = users.find(user => user.amazonUID == req.body.amazonUID);
     if(!user)
     {
-      res.send(JSON.stringify({"succ": false, "error": 1,"message": "user not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 3,"message": "User not found"}));
       return;
     }
 
     let hub = user.hubs.find(hub => hub.hubName == req.body.hubName);
     if(!hub)
     {
-      res.send(JSON.stringify({"succ": false, "error": 2, "message": "hub not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 1, "message": "hub not found"}));
       return;
     }
 
     let lock = hub.locks.find(lock => lock.lockName == req.body.deviceName);
     if(!lock)
     {
-      res.send(JSON.stringify({"succ": false, "error": 3, "message": "lock not found"}));
+      res.send(JSON.stringify({"succ": false, "error": 2, "message": "lock not found"}));
       return;
     }
 
@@ -668,9 +837,8 @@ app.get('/', function (req, res) {  res.sendFile(path.join(__dirname+'/index.htm
 });
 
 // error handling
-app.use(function(err, req, res, next){  console.error(err.stack);  res.status(500).send('Something bad happened!');
+app.use(function(err, req, res, next) {  console.error(err.stack);  res.status(500).send('Something bad happened!');
 });
-
 
 writeTestData();
 
