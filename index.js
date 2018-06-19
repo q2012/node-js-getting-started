@@ -46,12 +46,28 @@ function Lock(lockID, lockName) {
   this.battery = '100';  
   this.signal;
   
-  this.closeTime = [];
-  this.openTime = [];
+  this.openCloseTime = new OpenCloseTime(),
 
   this.qa = [];
   this.curQuestion = 0;
   this.command = {};
+}
+
+function OneOpenClose() {
+	this.lock_h = 99;
+	this.lock_m = 99;
+	this.unlock_h = 99;
+	this.unlock_m = 99;
+}
+
+function OpenCloseTime() {
+	this.Monday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Tuesday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Wednesday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Thursday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Friday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Saturday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.Sunday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
 }
 
 function Hub(hubID,hubName) {
@@ -188,6 +204,10 @@ app.post('/lock/register', function(req, res) {
 	res.send({"error": 0, "msg": "Lock registred successfully"});
 });
 
+function checkLengthOpenCloseArr(arr, count) {
+	return arr.filter(el => el.lock_h == 99).length >= count;
+};
+
 function pushCommand(from, to) {
 
 	from.lockName?(to.command.lockName = from.lockName, to.lockName = from.lockName):1==1;
@@ -209,60 +229,69 @@ function pushCommand(from, to) {
 		to.shift = ms - cd.getTime();
 	}
 
-	from.setCloseTimeM?(to.command.setCloseTimeM = from.setCloseTimeM, to.setCloseTime.m = from.setCloseTimeM):1==1;
-	from.setCloseTimeH?(to.command.setCloseTimeH = from.setCloseTimeH, to.setCloseTime.h = from.setCloseTimeH):1==1;
-	from.setOpenTimeM?(to.command.setOpenTimeM = from.setOpenTimeM, to.setOpenTime.m = from.setOpenTimeM):1==1;
-	from.setOpenTimeH?(to.command.setOpenTimeH = from.setOpenTimeH, to.setOpenTime.h = from.setOpenTimeH):1==1;
-
-	if(to.closeTime.filter(time => time.n == from.setCloseTimeN).length < 4)
+	if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && (from.setCloseTimeN == from.setOpenTimeN))
 	{
-		if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && to.closeTime.length < 4)
+		let arr,dest = [];
+		switch(parseInt(from.setCloseTimeN))
 		{
-			let closeTime = {h: from.setCloseTimeH, m: from.setCloseTimeM, n: from.setCloseTimeN};
-			to.closeTime.push(closeTime);
-			let resH = "" + closeTime.n;
-			let resM = "" + closeTime.n;
-			let i=0;
+			case 0:
+				arr = to.openCloseTime.Monday;
+				to.command.Monday = [];
+				dest = to.command.Monday;
+				break;
+			case 1:
+				arr = to.openCloseTime.Tuesday;
+				to.command.Tuesday = [];
+				dest = to.command.Tuesday;
+				break;
+			case 2:
+				arr = to.openCloseTime.Wednesday;
+				to.command.Wednesday = [];
+				dest = to.command.Wednesday;
+				break;
+			case 3:
+				arr = to.openCloseTime.Thursday;
+				to.command.Thursday = [];
+				dest = to.command.Thursday;
+				break;
+			case 4:
+				arr = to.openCloseTime.Friday;
+				to.command.Friday = [];
+				dest = to.command.Friday;
+				break;
+			case 5:
+				arr = to.openCloseTime.Saturday;
+				to.command.Saturday = [];
+				dest = to.command.Saturday;
+				break;
+			case 6:
+				arr = to.openCloseTime.Sunday;
+				to.command.Sunday = [];
+				dest = to.command.Sunday;
+				break;
+			default:
+				arr = undefined;
+		}
+		
+		if(arr && checkLengthOpenCloseArr(arr,1))
+		{
+			let atom = new OneOpenClose();
+			atom.lock_h = parseInt(from.setCloseTimeH);
+			atom.lock_m = parseInt(from.setCloseTimeM);
+			atom.unlock_h = parseInt(from.setOpenTimeH);
+			atom.unlock_m = parseInt(from.setOpenTimeM);
 
-			to.closeTime.forEach(time => {resH+=(time.h<10?"0"+time.h:time.h);resM+=(time.m<10?"0"+time.m:time.m); ++i;});
-			while(i < 4)
-			{
-				resH+="99";
-				resH+="99";
-				++i;
-			}
-
-			to.command.sunLockTimeH = res;
-			to.command.sunLockTimeM = res;
+			arr.splice(arr.findIndex(time => time.lock_h == 99),1);
+			arr.push(atom);
+			
+			arr.forEach(el => dest.push(el));
 		}
 	}
 	
-	if(to.openTime.filter(time => time.n == from.setOpenTimeN).length < 4)
-	{
-		if(from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && to.openTime.length < 4)
-		{
-			let openTime = {h: from.setOpenTimeH, m: from.setOpenTimeM, n: from.setOpenTimeN}
-			to.openTime.push(openTime);
-
-			let resH = "" + openTime.n;
-			let resM = "" + openTime.n;
-			let i=0;
-
-			to.openTime.forEach(time => {resH+=(time.h<10?"0"+time.h:time.h); resM+=(time.m<10?"0"+time.m:time.m); ++i;});
-			while(i < 4)
-			{
-				resH+="99";
-				resM+="99";
-				++i;
-			}
-
-			to.command.sunUnlockTimeH = res;
-			to.command.sunUnlockTimeM = res;
-		}
-	}
 
 	from.updateLock?to.command.updateLock = 1:1==1;
 };
+
 
 app.post('/push-command', function(req,res) {
   log += ("/push-command " + JSON.stringify(req.body) + "</br>");
