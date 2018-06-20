@@ -274,6 +274,7 @@ function pushCommand(from, to) {
 			default:
 				arr = undefined;
 		}
+
 		if(arr && from.setOpenCloseTimeDel)
 		{
 			let ind = arr.findIndex(time => (time.lock_h == from.setCloseTimeH && time.lock_m == from.setCloseTimeM && time.unlock_h == from.setOpenTimeH && time.unlock_m == from.setOpenTimeM));
@@ -286,9 +287,8 @@ function pushCommand(from, to) {
 				atom.unlock_h = 99;
 				atom.unlock_m = 99;
 				arr.push(atom);
-
-				arr.forEach(el => dest.push(el));
 			}
+			
 		}
 
 		else if(arr && checkLengthOpenCloseArr(arr,1))
@@ -301,9 +301,8 @@ function pushCommand(from, to) {
 
 			arr.splice(arr.findIndex(time => time.lock_h == 99),1);
 			arr.push(atom);
-			
-			arr.forEach(el => dest.push(el));
 		}
+		arr.forEach(el => dest.push(el));
 
 	}
 	
