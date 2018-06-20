@@ -232,48 +232,66 @@ function pushCommand(from, to) {
 	if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && (from.setCloseTimeN == from.setOpenTimeN))
 	{
 		let arr,dest = [];
+		if(!to.command.openCloseTime)
+			to.command.openCloseTime = {};
 		switch(parseInt(from.setCloseTimeN))
 		{
 			case 0:
 				arr = to.openCloseTime.Monday;
-				to.command.Monday = [];
-				dest = to.command.Monday;
+				to.command.openCloseTime.Monday = [];
+				dest = to.command.openCloseTime.Monday;
 				break;
 			case 1:
 				arr = to.openCloseTime.Tuesday;
-				to.command.Tuesday = [];
-				dest = to.command.Tuesday;
+				to.command.openCloseTime.Tuesday = [];
+				dest = to.command.openCloseTime.Tuesday;
 				break;
 			case 2:
 				arr = to.openCloseTime.Wednesday;
-				to.command.Wednesday = [];
-				dest = to.command.Wednesday;
+				to.command.openCloseTime.Wednesday = [];
+				dest = to.command.openCloseTime.Wednesday;
 				break;
 			case 3:
 				arr = to.openCloseTime.Thursday;
-				to.command.Thursday = [];
-				dest = to.command.Thursday;
+				to.command.openCloseTime.Thursday = [];
+				dest = to.command.openCloseTime.Thursday;
 				break;
 			case 4:
 				arr = to.openCloseTime.Friday;
-				to.command.Friday = [];
-				dest = to.command.Friday;
+				to.command.openCloseTime.Friday = [];
+				dest = to.command.openCloseTime.Friday;
 				break;
 			case 5:
 				arr = to.openCloseTime.Saturday;
-				to.command.Saturday = [];
-				dest = to.command.Saturday;
+				to.command.openCloseTime.Saturday = [];
+				dest = to.command.openCloseTime.Saturday;
 				break;
 			case 6:
 				arr = to.openCloseTime.Sunday;
-				to.command.Sunday = [];
-				dest = to.command.Sunday;
+				to.command.openCloseTime.Sunday = [];
+				dest = to.command.openCloseTime.Sunday;
 				break;
 			default:
 				arr = undefined;
 		}
-		
-		if(arr && checkLengthOpenCloseArr(arr,1))
+		if(arr && from.setOpenCloseTimeDel)
+		{
+			let ind = arr.findIndex(time => (time.lock_h == from.setCloseTimeH && time.lock_m == from.setCloseTimeM && time.unlock_h == from.setOpenTimeH && time.unlock_m == from.setOpenTimeM));
+			if(ind >= 0)
+			{
+				arr.splice(ind,1);
+				let atom = new OneOpenClose();
+				atom.lock_h = 99;
+				atom.lock_m = 99;
+				atom.unlock_h = 99;
+				atom.unlock_m = 99;
+				arr.push(atom);
+
+				arr.forEach(el => dest.push(el));
+			}
+		}
+
+		else if(arr && checkLengthOpenCloseArr(arr,1))
 		{
 			let atom = new OneOpenClose();
 			atom.lock_h = parseInt(from.setCloseTimeH);
@@ -286,6 +304,7 @@ function pushCommand(from, to) {
 			
 			arr.forEach(el => dest.push(el));
 		}
+
 	}
 	
 
