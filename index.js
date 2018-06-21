@@ -387,6 +387,15 @@ app.get('/push-command', function(req,res) {
 	delete lock.command.msg;
 });
 
+function updateOpenCloseTime(to, from) {
+	from.forEach((el,i) => {
+		to[i].lock_h = parseInt(el.substr(0,2));
+		to[i].lock_m = parseInt(el.substr(2,2));
+		to[i].unlock_h = parseInt(el.substr(4,2));
+		to[i].unlock_m = parseInt(el.substr(6,2));
+	});
+};
+
 function updateLock(from, lock) {
 	from.lockName?lock.lockName = from.lockName:lock.lockName;
     from.state?lock.state = from.state:lock.state;
@@ -408,6 +417,22 @@ function updateLock(from, lock) {
 		cd.setMinutes(lock.Time.m);
 		lock.shift = cd.getTime() - ms;
 	}
+
+	if(from.Monday)
+		updateOpenCloseTime(lock.openCloseTime.Monday, from.Monday.split(" "));
+	if(from.Tuesday)
+		updateOpenCloseTime(lock.openCloseTime.Tuesday, from.Tuesday.split(" "));
+	if(from.Wednesday)
+		updateOpenCloseTime(lock.openCloseTime.Wednesday, from.Wednesday.split(" "));
+	if(from.Thursday)
+		updateOpenCloseTime(lock.openCloseTime.Thursday, from.Thursday.split(" "));
+	if(from.Friday)
+		updateOpenCloseTime(lock.openCloseTime.Friday, from.Friday.split(" "));
+	if(from.Saturday)
+		updateOpenCloseTime(lock.openCloseTime.Saturday, from.Saturday.split(" "));
+	if(from.Sunday)
+		updateOpenCloseTime(lock.openCloseTime.Sunday, from.Sunday.split(" "));
+
 };
 
 app.post('/get-command', function(req,res) {
