@@ -85,6 +85,7 @@ function User(userID, amazonUID) {
 function Time(h,m) {
 	this.h = h;
 	this.m = m;
+	this.n;
 }
 
 function cmp(time1,time2) {
@@ -216,11 +217,12 @@ function pushCommand(from, to) {
 	from.PIN?(to.command.PIN = from.PIN, to.PIN = from.PIN):1==1;
 	from.mode?(to.command.mode = from.mode, to.mode = from.mode):1==1;
 	
+	from.setTimeN?(lock.setTime.n = parseInt(from.setTimeN), to.command.setTimeN = parseInt(lock.time.n)):1==1;
 	if(from.setTimeM && from.setTimeH) {
-		to.command.setTimeM = from.setTimeM;
-		to.setTime.m = from.setTimeM;
-		to.command.setTimeH = from.setTimeH;
-		to.setTime.h = from.setTimeH;
+		to.command.setTimeM = parseInt(from.setTimeM);
+		to.setTime.m = parseInt(from.setTimeM);
+		to.command.setTimeH = parseInt(from.setTimeH);
+		to.setTime.h = parseInt(from.setTimeH);
 
 		let cd = new Date();
 		let ms = cd.getTime();
@@ -403,13 +405,11 @@ function updateLock(from, lock) {
     from.PIN?lock.PIN = from.PIN:lock.PIN;
     from.battery?lock.battery = from.battery:lock.battery;
 
-    from.setCloseTimeH && from.setCloseTimeM?(lock.setCloseTime.h = from.setCloseTimeH, lock.setCloseTime.m = from.setCloseTimeM):1==1;
-	from.setOpenTimeH && from.setOpenTimeM?(lock.setOpenTime.h = from.setOpenTimeH, lock.setOpenTime.m = from.setOpenTimeM):1==1;
-
+	from.timeN?lock.time.n = parseInt(from.timeN):1==1;
 	if(from.timeH && from.timeM) 
 	{
-	    lock.time.h = from.timeH;
-		lock.time.m = from.timeM;
+	    lock.time.h = parseInt(from.timeH);
+		lock.time.m = parseInt(from.timeM);
 
 		let cd = new Date();
 		let ms = cd.getTime();
