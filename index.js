@@ -725,7 +725,7 @@ app.post('/alexa',function(req,res) {
       return;
     }
 
-    let lock = hub.locks.find(lock => lock.lockName == req.body.deviceName);
+    let lock = hub.locks.find(lock => lock.lockName == req.body.lockName);
     if(!lock)
     {
       res.send(JSON.stringify({"succ": false, "error": 2, "message": "lock not found"}));
