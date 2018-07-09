@@ -581,7 +581,7 @@ function writeTestData() {
   hubs.push(new Hub('2','Second'));
   hubs.push(new Hub('3','First'));
   hubs.push(new Hub('4','Second'));
-  hubs.push(new Hub('30AEA4199554','First'));
+  hubs.push(new Hub('30AEA421ED84','First'));
 
   locks.push(new Lock('F0F8F26F7748-test','First'));
   locks.push(new Lock('B091226945A2-test','Second'));
