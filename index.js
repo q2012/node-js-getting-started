@@ -577,14 +577,14 @@ function writeTestData() {
   users.push(new User('3', '3'));
   users.push(new User('4', '4'));
 
-  hubs.push(new Hub('30AEA4199554-test','First'));
+  hubs.push(new Hub('30AEA4199554test','First'));
   hubs.push(new Hub('2','Second'));
   hubs.push(new Hub('3','First'));
   hubs.push(new Hub('4','Second'));
   hubs.push(new Hub('30AEA421ED84','First'));
 
-  locks.push(new Lock('F0F8F26F7748-test','First'));
-  locks.push(new Lock('B091226945A2-test','Second'));
+  locks.push(new Lock('F0F8F26F7748test','First'));
+  locks.push(new Lock('B091226945A2test','Second'));
   locks.push(new Lock('3','First'));
   locks.push(new Lock('4','First'));
   locks.push(new Lock('5','Second'));
