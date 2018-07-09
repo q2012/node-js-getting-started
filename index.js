@@ -577,21 +577,22 @@ function writeTestData() {
   users.push(new User('3', '3'));
   users.push(new User('4', '4'));
 
-  hubs.push(new Hub('30AEA4199554','First'));
+  hubs.push(new Hub('30AEA4199554-test','First'));
   hubs.push(new Hub('2','Second'));
   hubs.push(new Hub('3','First'));
   hubs.push(new Hub('4','Second'));
-  hubs.push(new Hub('5','First'));
+  hubs.push(new Hub('30AEA4199554','First'));
 
-  locks.push(new Lock('F0F8F26F772D','First'));
-  locks.push(new Lock('B091226945A2','Second'));
+  locks.push(new Lock('F0F8F26F7748-test','First'));
+  locks.push(new Lock('B091226945A2-test','Second'));
   locks.push(new Lock('3','First'));
   locks.push(new Lock('4','First'));
   locks.push(new Lock('5','Second'));
   locks.push(new Lock('6','Third'));
   locks.push(new Lock('7','First'));
   locks.push(new Lock('8','Second'));
-  locks.push(new Lock('9','First'));
+  locks.push(new Lock('F0F8F26F7748','First'));
+  locks.push(new Lock('B091226945A2','Second'));
 
   users[0].hubs.push(hubs[0]);
   users[0].hubs.push(hubs[1]);
@@ -608,6 +609,7 @@ function writeTestData() {
   users[1].hubs[1].locks.push(locks[6]);
   users[1].hubs[1].locks.push(locks[7]);
   users[2].hubs[0].locks.push(locks[8]);
+  users[2].hubs[0].locks.push(locks[9]);
 };
 
 app.get('/test-data', function(req,res) {  log += ("/test-data " + JSON.stringify(req.query) + "</br>"); writeTestData();  res.sendStatus(201);
