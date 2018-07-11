@@ -136,6 +136,99 @@ function dateIn(cd, lock) {
 	return arr.every(openClose => oneDateIn(cd, openClose));
 }
 
+function deleteUser(from) {
+	if(!from.userID)
+		return {"error": 9, "msg": "Not enough data"}
+
+	let user = users.findIndex(us => us.userID == from.userID);
+
+	if(user == -1)
+		return {"error": 1, "msg": "User not found"};
+
+	users.splice(user,1);
+	return {"error": 0, "msg": "User deleted"};
+}
+
+app.get('/user/delete', function(req, res) {
+	res.send(deleteUser(req.query));
+});
+
+app.post('/user/delete', function(req,res) {
+	res.send(deleteUser(req.body));
+});
+
+function deleteHub(from) {
+	if(!from.hubID || !from.userID)
+		return {"error": 9, "msg": "Not enough data"}
+
+	let user = users.find(us => us.userID == from.userID);
+
+	if(!user)
+		return {"error": 1, "msg": "User not found"};
+
+	let hub = user.hubs.findIndex(hub => hub.hubID == from.hubID);
+	if(hub == -1)
+		return {"error": 2, "msg": "Hub is not assigned to this user"};
+
+	user.hubs.splice(hub,1);
+	return {"error": 0, "msg": "Hub deleted"};
+}
+
+app.get('/hub/delete', function(req, res) {
+	res.send(deleteHub(req.query));
+});
+
+app.post('/hub/delete', function(req, res) {
+	res.send(deleteHub(req.body));
+});
+
+function deleteLock(from) {
+	if(!from.hubID || !from.lockID)
+		return {"error": 9, "msg": "Not enough data"}
+
+	let hub = hubs.find(us => us.hubID == from.hubID);
+
+	if(!hub)
+		return {"error": 1, "msg": "Hub not found"};
+
+	let lock = hub.locks.findIndex(hub => hub.lockID == from.lockID);
+	if(lock == -1)
+		return {"error": 2, "msg": "Lock is not assigned to this hub"};
+
+	hub.locks.splice(lock,1);
+	return {"error": 0, "msg": "Lock deleted"};
+};
+
+app.get('/lock/delete', function(req, res) {
+	res.send(deleteLock(req.query));
+});
+
+app.post('/lock/delete', function(req, res) {
+	res.send(deleteLock(req.body));
+});
+
+function registerUser(from) {
+	if(!from.userID)
+		return {"error": 9, "msg": "Not enough data"};
+
+	if(users.find(us => us.userID == from.userID))
+		return {"error": 1, "msg": "User already exists"};
+
+	let user = {};
+	user.userID = from.userID;
+	from.amazonUID?user.amazonUID = from.amazonUID:1==1;
+	users.push(user);
+	return {"error": 0, "msg": "User created"};
+};
+
+app.get('/user/register', function(req, res) {
+	res.send(registerUser(req.query));
+});
+
+app.post('/user/register', function(req, res) {
+	res.send(registerUser(req.body));
+});
+
 app.get('/hub/register', function(req, res) {
 	if(!req.query.hubID || !req.query.userID)
 	{
