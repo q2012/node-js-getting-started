@@ -177,9 +177,11 @@ function deleteHub(from) {
 	if(hub == -1)
 		return {"error": 2, "msg": "Hub is not assigned to this user"};
 
-	user.hubs.find(hub => hub.hubID == from.hubID).locks.forEach(lock => locks.splice(locks.findIndex(test => lock.lockID == test.lockID)));
+	let userHub = user.hubs.find(hub => hub.hubID == from.hubID);
+	userHub.locks.forEach(lock => locks.splice(locks.findIndex(test => lock.lockID == test.lockID)));
 
 	user.hubs.splice(hub,1);
+	hubs.splice(hubs.findIndex(hubs => hubs.hubID == userHub.hubID),1);
 	return {"error": 0, "msg": "Hub deleted"};
 }
 
@@ -203,6 +205,7 @@ function deleteLock(from) {
 		return {"error": 2, "msg": "Lock is not assigned to this hub"};
 
 	hub.locks.splice(lock,1);
+	locks.splice(locks.findIndex(locks => locks.lockID == from.lockID),1);
 	return {"error": 0, "msg": "Lock deleted"};
 };
 
