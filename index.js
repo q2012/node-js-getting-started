@@ -90,6 +90,8 @@ let users = [];
 let hubs = [];
 let locks = [];
 
+function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
+};
 
 function oneDateIn(date,openClose) {
 
@@ -230,27 +232,19 @@ app.post('/user/register', function(req, res) {	res.send(registerUser(req.body))
 
 function registerHub(from) {
 	if(!from.hubID || !from.userID)
-	{
-		res.send({"error": 9, "msg": "Not enough data"});
-		return;
-	}
+		return {"error": 9, "msg": "Not enough data"};
+
 	let user = users.find(us => us.userID == from.userID);
 	let hub = hubs.find(hub => hub.hubID == from.hubID);
 	if(!user)
-	{
-		res.send({"error": 1, "msg": "User not found"});
-		return;
-	}
+		return {"error": 1, "msg": "User not found"};
 	if(hub)
-	{
-		res.send({"error": 10, "msg": "Hub with this ID already exists"});
-		return;
-	}
+		return {"error": 10, "msg": "Hub with this ID already exists"};
 
 	hub = new Hub(from.hubID, "");
 	hubs.push(hub);
 	user.hubs.push(hub);
-	res.send({"error": 0, "msg": "Hub registred successfully"});
+	return {"error": 0, "msg": "Hub registred successfully"};
 };
 
 app.get('/hub/register', function(req, res) {	res.send(registerHub(req.query));
@@ -262,28 +256,21 @@ app.post('/hub/register', function(req, res) {	res.send(registerHub(req.body));
 function registerLock(from) {
 	if(!from.lockID || !from.hubID)
 	{
-		res.send({"error": 9, "msg": "Not enough data"});
-		return;
+		return {"error": 9, "msg": "Not enough data"};
 	}
 	let hub = hubs.find(hub => hub.hubID == from.hubID);
 	let lock = locks.find(lock => lock.lockID == from.lockID);
 
 	if(!hub)
-	{
-		res.send({"error": 1, "msg": "Hub not found"});
-		return;
-	}
+		return {"error": 1, "msg": "Hub not found"};
 	if(lock)
-	{
-		res.send({"error": 10, "msg": "Lock with this ID already exists"});
-		return;
-	}
+		return {"error": 10, "msg": "Lock with this ID already exists"};
 
 	lock = new Lock(from.lockID, "");
 
 	locks.push(lock);
 	hub.locks.push(lock);
-	res.send({"error": 0, "msg": "Lock registred successfully"});
+	return {"error": 0, "msg": "Lock registred successfully"};
 };
 
 app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query));
@@ -291,9 +278,6 @@ app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query))
 
 app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body));
 });
-
-function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
-};
 
 function pushCommand(from, to) {
 
