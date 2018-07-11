@@ -156,12 +156,10 @@ function deleteUser(from) {
 	return {"error": 0, "msg": "User deleted"};
 }
 
-app.get('/user/delete', function(req, res) {
-	res.send(deleteUser(req.query));
+app.get('/user/delete', function(req, res) {	res.send(deleteUser(req.query));
 });
 
-app.post('/user/delete', function(req,res) {
-	res.send(deleteUser(req.body));
+app.post('/user/delete', function(req,res) {	res.send(deleteUser(req.body));
 });
 
 function deleteHub(from) {
@@ -183,12 +181,10 @@ function deleteHub(from) {
 	return {"error": 0, "msg": "Hub deleted"};
 }
 
-app.get('/hub/delete', function(req, res) {
-	res.send(deleteHub(req.query));
+app.get('/hub/delete', function(req, res) {	res.send(deleteHub(req.query));
 });
 
-app.post('/hub/delete', function(req, res) {
-	res.send(deleteHub(req.body));
+app.post('/hub/delete', function(req, res) {	res.send(deleteHub(req.body));
 });
 
 function deleteLock(from) {
@@ -208,12 +204,10 @@ function deleteLock(from) {
 	return {"error": 0, "msg": "Lock deleted"};
 };
 
-app.get('/lock/delete', function(req, res) {
-	res.send(deleteLock(req.query));
+app.get('/lock/delete', function(req, res) {	res.send(deleteLock(req.query));
 });
 
-app.post('/lock/delete', function(req, res) {
-	res.send(deleteLock(req.body));
+app.post('/lock/delete', function(req, res) {	res.send(deleteLock(req.body));
 });
 
 function registerUser(from) {
@@ -223,29 +217,25 @@ function registerUser(from) {
 	if(users.find(us => us.userID == from.userID))
 		return {"error": 1, "msg": "User already exists"};
 
-	let user = {};
-	user.userID = from.userID;
-	from.amazonUID?user.amazonUID = from.amazonUID:1==1;
+	let user = new User(from.userID, from.amazonUID?user.amazonUID = from.amazonUID:"");
 	users.push(user);
 	return {"error": 0, "msg": "User created"};
 };
 
-app.get('/user/register', function(req, res) {
-	res.send(registerUser(req.query));
+app.get('/user/register', function(req, res) {	res.send(registerUser(req.query));
 });
 
-app.post('/user/register', function(req, res) {
-	res.send(registerUser(req.body));
+app.post('/user/register', function(req, res) {	res.send(registerUser(req.body));
 });
 
-app.get('/hub/register', function(req, res) {
-	if(!req.query.hubID || !req.query.userID)
+function registerHub(from) {
+	if(!from.hubID || !from.userID)
 	{
 		res.send({"error": 9, "msg": "Not enough data"});
 		return;
 	}
-	let user = users.find(us => us.userID == req.query.userID);
-	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	let user = users.find(us => us.userID == from.userID);
+	let hub = hubs.find(hub => hub.hubID == from.hubID);
 	if(!user)
 	{
 		res.send({"error": 1, "msg": "User not found"});
@@ -257,46 +247,26 @@ app.get('/hub/register', function(req, res) {
 		return;
 	}
 
-	hub = new Hub(req.query.hubID, "");
+	hub = new Hub(from.hubID, "");
 	hubs.push(hub);
 	user.hubs.push(hub);
 	res.send({"error": 0, "msg": "Hub registred successfully"});
+};
+
+app.get('/hub/register', function(req, res) {	res.send(registerHub(req.query));
 });
 
-app.post('/hub/register', function(req, res) {
-	if(!req.body.hubID || !req.body.userID)
+app.post('/hub/register', function(req, res) {	res.send(registerHub(req.body));
+});
+
+function registerLock(from) {
+	if(!from.lockID || !from.hubID)
 	{
 		res.send({"error": 9, "msg": "Not enough data"});
 		return;
 	}
-	let user = users.find(us => us.userID == req.body.userID);
-	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
-
-	if(!user)
-	{
-		res.send({"error": 1, "msg": "User not found"})
-	}
-	if(hub)
-	{
-		res.send({"error": 10, "msg": "Hub with this ID already exists"});
-		return;
-	}
-
-	hub = new Hub(req.body.hubID, "");
-
-	hubs.push(hub);
-	user.hubs.push(hub);
-	res.send({"error": 0, "msg": "Hub registred successfully"});
-});
-
-app.get('/lock/register', function(req, res) {
-	if(!req.query.lockID || !req.query.hubID)
-	{
-		res.send({"error": 9, "msg": "Not enough data"});
-		return;
-	}
-	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
-	let lock = locks.find(lock => lock.lockID == req.query.lockID);
+	let hub = hubs.find(hub => hub.hubID == from.hubID);
+	let lock = locks.find(lock => lock.lockID == from.lockID);
 
 	if(!hub)
 	{
@@ -309,37 +279,17 @@ app.get('/lock/register', function(req, res) {
 		return;
 	}
 
-	lock = new Lock(req.query.lockID, "");
+	lock = new Lock(from.lockID, "");
 
 	locks.push(lock);
 	hub.locks.push(lock);
 	res.send({"error": 0, "msg": "Lock registred successfully"});
+};
+
+app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query));
 });
 
-app.post('/lock/register', function(req, res) {
-	if(!req.body.lockID || !req.body.hubID)
-	{
-		res.send({"error": 9, "msg": "Not enough data"});
-		return;
-	}
-	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
-	let lock = locks.find(lock => lock.lockID == req.body.lockID);
-
-	if(!hub)
-	{
-		res.send({"error": 1, "msg": "Hub not found"})
-	}
-	if(lock)
-	{
-		res.send({"error": 10, "msg": "Lock with this ID already exists"});
-		return;
-	}
-
-	lock = new Lock(req.body.lockID, "");
-
-	locks.push(lock);
-	hub.locks.push(lock);
-	res.send({"error": 0, "msg": "Lock registred successfully"});
+app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body));
 });
 
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
