@@ -145,6 +145,13 @@ function deleteUser(from) {
 	if(user == -1)
 		return {"error": 1, "msg": "User not found"};
 
+	users.find(user => user.userID == from.userID).hubs.forEach(hub => {
+		hub.locks.forEach(lock => locks.splice(locks.findIndex(test => lock.lockID == test.lockID)));
+		hub.locks = [];
+		hubs.splice(hubs.findIndex(hubsad => hubsad.hubID == hub.hubID),1);
+	});
+	user.hubs = [];
+
 	users.splice(user,1);
 	return {"error": 0, "msg": "User deleted"};
 }
@@ -169,6 +176,8 @@ function deleteHub(from) {
 	let hub = user.hubs.findIndex(hub => hub.hubID == from.hubID);
 	if(hub == -1)
 		return {"error": 2, "msg": "Hub is not assigned to this user"};
+
+	user.hubs.find(hub => hub.hubID == from.hubID).locks.forEach(lock => locks.splice(locks.findIndex(test => lock.lockID == test.lockID)));
 
 	user.hubs.splice(hub,1);
 	return {"error": 0, "msg": "Hub deleted"};
