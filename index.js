@@ -11,12 +11,8 @@ let multer = require('multer');
 let upload = multer();
 let uploadedBuffer;
 let testBuffer;
-
 let pressButt = 0;
-
-
 let log = "";
-
 
 app.use(bodyParser.urlencoded({  extended: true}));
 
@@ -24,12 +20,19 @@ app.use(bodyParser.json());
 app.use(bodyParser.text()); 
 
 
+app.use((req, res, next) => {
+  if ((req.url == '/auth/google' && req.header('x-forwarded-proto') !== 'https'))
+	res.send(400);
+  else
+    next();
+});
+
 var MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
 
 function Pair(key, val) {
   this.key = key;
   this.val = val;
-}
+};
 
 function Lock(lockID, lockName) {
   this.lockID = lockID;
@@ -49,14 +52,14 @@ function Lock(lockID, lockName) {
   this.qa = [];
   this.curQuestion = 0;
   this.command = {};
-}
+};
 
 function OneOpenClose() {
 	this.lock_h = 99;
 	this.lock_m = 99;
 	this.unlock_h = 99;
 	this.unlock_m = 99;
-}
+};
 
 function OpenCloseTime() {
 	this.Monday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
@@ -66,25 +69,29 @@ function OpenCloseTime() {
 	this.Friday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
 	this.Saturday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
 	this.Sunday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
-}
+};
 
 function Hub(hubID,hubName) {
   this.hubID = hubID;
   this.hubName = hubName;
   this.locks = [];
-}
+
+  this.command = {};
+
+  this.tempLocks = [];
+};
 
 function User(userID, amazonUID) {
   this.userID = userID;
   this.amazonUID = amazonUID;
   this.hubs = [];
-}
+};
 
 function Time(h,m) {
 	this.h = h;
 	this.m = m;
 	this.n;
-}
+};
 
 let users = [];
 let hubs = [];
@@ -104,7 +111,7 @@ function oneDateIn(date,openClose) {
 	dateUnlock.setUTCMinutes(openClose.unlock_m);
 
 	return date.getTime() > dateLock.getTime() && date.getTime() < dateUnlock.getTime();
-}
+};
 
 function dateIn(cd, lock) {
 	let arr = undefined;
@@ -136,7 +143,7 @@ function dateIn(cd, lock) {
 	}
 
 	return arr.every(openClose => oneDateIn(cd, openClose));
-}
+};
 
 function deleteUser(from) {
 	if(!from.userID)
@@ -156,7 +163,7 @@ function deleteUser(from) {
 
 	users.splice(user,1);
 	return {"error": 0, "msg": "User deleted"};
-}
+};
 
 app.get('/user/delete', function(req, res) {	res.send(deleteUser(req.query));
 });
@@ -183,7 +190,7 @@ function deleteHub(from) {
 	user.hubs.splice(hub,1);
 	hubs.splice(hubs.findIndex(hubs => hubs.hubID == userHub.hubID),1);
 	return {"error": 0, "msg": "Hub deleted"};
-}
+};
 
 app.get('/hub/delete', function(req, res) {	res.send(deleteHub(req.query));
 });
@@ -282,9 +289,45 @@ app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query))
 app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body));
 });
 
+function addTempLocks(from, to) {
+
+};
+
+app.get('/add-temp-locks', function(req, res) {
+	log += ("/add-temp-locks " + JSON.stringify(req.query) + "</br>");
+
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	addTempLocks(req.query, hub);
+
+	res.send({"error": 0, "msg": "Locks successfully added", "locks": hub.tempLocks});
+});
+
+app.post('/add-temp-locks', function(req, res) {
+	log += ("/add-temp-locks " + JSON.stringify(req.body) + "</br>");
+
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	hub.tempLocks = req.body.tempLocks;
+
+	res.send({"error": 0, "msg": "Locks successfully added", "locks": hub.tempLocks});
+});
+
 function pushCommand(from, to) {
 
-
+	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
+	from.signalLock?to.command.signalLock = from.signalLock:1==1;
+	from.findLocks?to.command.findLocks = from.findLocks:1==1;
 
 	from.lockName?(to.command.lockName = from.lockName, to.lockName = from.lockName):1==1;
 	from.setOpen?(to.command.setOpen = from.setOpen, to.setOpen = from.setOpen):1==1;
@@ -394,7 +437,14 @@ app.post('/push-command', function(req,res) {
 
 	if(!req.body.lockID)
 	{
-		res.send("Not supported yet");
+		hub.command.error = 0;
+		hub.command.msg = "Command added";
+		pushCommand(req.body, hub);
+
+		res.send(hub.command);
+
+		delete hub.command.error;
+		delete hub.command.msg;
 		return;
 	}
 
@@ -432,7 +482,14 @@ app.get('/push-command', function(req,res) {
 
 	if(!req.query.lockID)
 	{
-		res.send("Not supported yet");
+		hub.command.error = 0;
+		hub.command.msg = "Command added";
+		pushCommand(req.query, hub);
+
+		res.send(hub.command);
+
+		delete hub.command.error;
+		delete hub.command.msg;
 		return;
 	}
 
@@ -503,7 +560,6 @@ function updateLock(from, lock) {
 		updateOpenCloseTime(lock.openCloseTime.Saturday, from.Saturday.split(" "));
 	if(from.Sunday)
 		updateOpenCloseTime(lock.openCloseTime.Sunday, from.Sunday.split(" "));
-
 };
 
 app.post('/get-command', function(req,res) {
@@ -517,7 +573,8 @@ app.post('/get-command', function(req,res) {
 
 	if(!req.body.lockID)
 	{
-		res.send("Not supported yet");
+		res.send(JSON.stringify(hub.command));
+		hub.command = {};
 		return;
 	}
 
@@ -551,7 +608,8 @@ app.get('/get-command', function(req,res) {
 
 	if(!req.query.lockID)
 	{
-		res.send("Not supported yet");
+		res.send(JSON.stringify(hub.command));
+		hub.command = {};
 		return;
 	}
 
@@ -788,7 +846,6 @@ app.post('/lock', function(req,res) {
     }
     res.sendStatus(404);
 });
-
 
 app.get('/test-log', function(req, res) {  req.query.clear?(log = "", res.send("Log cleared.")):res.send("<html><body>" + log + "</body></html>");
 });
