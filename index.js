@@ -290,7 +290,6 @@ app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body))
 });
 
 function addTempLocks(from, to) {
-
 };
 
 app.get('/add-temp-locks', function(req, res) {
@@ -322,6 +321,31 @@ app.post('/add-temp-locks', function(req, res) {
 
 	res.send({"error": 0, "msg": "Locks successfully added", "locks": hub.tempLocks});
 });
+
+app.post('/register-temp-locks', function(req, res) {
+	log += ('/register-temp-locks' + JSON.stringify(req.body) + '</br>');
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	if(!req.body.tempLocks)
+	{
+		res.send({"error": 2, "msg": "Locks not found"});
+		return;
+	}
+	hub.command.error = 0;
+	hub.command.msg = "Locks array to add added";
+	hub.command.tempLocks = req.body.tempLocks;
+	hub.tempLocks = req.body.tempLocks;
+
+	res.send(hub.command);
+
+	delete hub.command.error;
+	delete hub.command.msg;
+}); 
 
 function pushCommand(from, to) {
 
