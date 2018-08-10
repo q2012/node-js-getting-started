@@ -586,6 +586,45 @@ function updateLock(from, lock) {
 		updateOpenCloseTime(lock.openCloseTime.Sunday, from.Sunday.split(" "));
 };
 
+function getCommand(hub) {
+	let resp = {};
+	resp.hub = (Object.keys(hub.command).length === 0 && hub.command.constructor === Object)?undefined:hub.command;
+	resp.locks = [];
+	hub.locks.forEach(lock => (Object.keys(lock.command).length === 0 && lock.command.constructor === Object)?1==1:(lock.command.UUID = lock.lockID, resp.locks.push(lock.command)));
+	resp.locks.length == 0?resp.locks = undefined:1==1;
+	return resp;
+};
+
+app.post('/get-full-command', function(req, res) {
+	log += ("/get-command " + JSON.stringify(req.body) + "</br>");
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let resp = getCommand(hub);
+	res.send(resp);
+	hub.command = {};
+	hub.locks.forEach(lock => lock.command = {});
+});
+
+app.get('/get-full-command', function(req, res) {
+	log += ("/get-command " + JSON.stringify(req.query) + "</br>");
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	let resp = getCommand(hub);
+	res.send(resp);
+	hub.command = {};
+	hub.locks.forEach(lock => lock.command = {});
+});
+
 app.post('/get-command', function(req,res) {
   log += ("/get-command " + JSON.stringify(req.body) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
