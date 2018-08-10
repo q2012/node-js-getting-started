@@ -352,6 +352,8 @@ function pushCommand(from, to) {
 	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
 	from.signalLock?to.command.signalLock = from.signalLock:1==1;
 	from.findLocks?to.command.findLocks = from.findLocks:1==1;
+	from.connect?to.command.connect = from.connect:1==1;
+	from.disconnect?to.command.disconnect = from.disconnect:1==1;
 
 	from.lockName?(to.command.lockName = from.lockName, to.lockName = from.lockName):1==1;
 	from.setOpen?(to.command.setOpen = from.setOpen, to.setOpen = from.setOpen):1==1;
