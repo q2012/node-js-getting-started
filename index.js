@@ -1,19 +1,21 @@
 let curErr = 10;
 
 const PORT = process.env.PORT || 5000;
+const mongoURL = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
 
 let express = require('express');
 let app     = express();
 const bodyParser = require("body-parser");
 let path    = require("path");
 
+let mongoose = require('mongoose');
+let fs = require('fs');
 let multer = require('multer');
-let upload = multer();
-let uploadedBuffer;
-let testBuffer;
-let pressButt = 0;
-let log = "";
+let upload = multer({ dest: 'upload/'});
 
+(async () =>{ 
+
+mongoose.connect(mongoURL);
 app.use(bodyParser.urlencoded({  extended: true}));
 
 app.use(bodyParser.json()); 
@@ -27,7 +29,10 @@ app.use((req, res, next) => {
     next();
 });
 
-var MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
+let fileShema = mongoose.Schema({
+	file: Buffer
+});
+let File = mongoose.model('File', fileShema);
 
 function Pair(key, val) {
   this.key = key;
@@ -96,6 +101,31 @@ function Time(h,m) {
 let users = [];
 let hubs = [];
 let locks = [];
+
+let files = await File.find({});
+if(files.length < 1)
+{
+	let file = new File({});
+	file.save(function(err) {
+		if(err)
+			throw err;
+	});
+}
+
+let log = "";
+let MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
+
+app.post('/upload', upload.single('file'), async function(req, res) {
+	let file = (await File.find({}))[0];
+	file.file = fs.readFileSync(req.file.destination + req.file.filename);
+	await File.findOneAndUpdate({"_id": file._id}, {$set: {"file": file.file}}, function(err,doc,res) {});
+	res.send("File uploaded");
+});
+
+app.get('/download', async function(req, res) {
+	let file = (await File.find({}))[0];
+	res.send(file.file);
+});
 
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
 };
@@ -594,7 +624,6 @@ function updateHub(from, hub) {
 	from.pressure?(hub.pressure = from.pressure, hub.lastUpdate = cd):1==1;
 	from.temperature?(hub.temperature = from.temperature, hub.lastUpdate = cd):1==1;
 	from.height?(hub.height = from.height, hub.lastUpdate = cd):1==1;
-
 };
 
 function getCommand(hub) {
@@ -1155,7 +1184,7 @@ app.post('/alexa',function(req,res) {
 
 app.get('/', function (req, res) {  res.sendFile(path.join(__dirname+'/index.html'));
 });
-
+app.get('/inDev.jpg', function(req, res) { res.sendFile(path.join(__dirname + '/inDev.jpg'))})
 // error handling
 app.use(function(err, req, res, next) {  console.error(err.stack);  res.status(500).send('Something bad happened!');
 });
@@ -1163,5 +1192,7 @@ app.use(function(err, req, res, next) {  console.error(err.stack);  res.status(5
 writeTestData();
 
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`));
+
+})();
 
 module.exports = app ;
