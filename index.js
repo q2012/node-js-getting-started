@@ -588,6 +588,15 @@ function updateLock(from, lock) {
 		updateOpenCloseTime(lock.openCloseTime.Sunday, from.Sunday.split(" "));
 };
 
+function updateHub(from, hub) {
+	let cd = new Date().getTime();
+	from.humidity?(hub.humidity = from.humidity, hub.lastUpdate = cd):1==1;
+	from.pressure?(hub.pressure = from.pressure, hub.lastUpdate = cd):1==1;
+	from.temperature?(hub.temperature = from.temperature, hub.lastUpdate = cd):1==1;
+	from.height?(hub.height = from.height, hub.lastUpdate = cd):1==1;
+
+};
+
 function getCommand(hub) {
 	let resp = {};
 	resp.hub = (Object.keys(hub.command).length === 0 && hub.command.constructor === Object)?undefined:hub.command;
@@ -598,14 +607,14 @@ function getCommand(hub) {
 };
 
 app.post('/get-full-command', function(req, res) {
-	log += ("/get-command " + JSON.stringify(req.body) + "</br>");
+	log += ("/get-full-command " + JSON.stringify(req.body) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
 		res.send({"error": 1, "msg": "Hub not found"});
 		return;
 	}
-
+	updateHub(req.body, hub);
 	let resp = getCommand(hub);
 	res.send(resp);
 	hub.command = {};
@@ -621,6 +630,7 @@ app.get('/get-full-command', function(req, res) {
 		return;
 	}
 
+	updateHub(req.query, hub);
 	let resp = getCommand(hub);
 	res.send(resp);
 	hub.command = {};
