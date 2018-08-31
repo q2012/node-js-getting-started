@@ -103,8 +103,7 @@ let hubs = [];
 let locks = [];
 
 let files = await File.find({});
-if(files.length < 1)
-{
+if(files.length < 1) {
 	let file = new File({});
 	file.save(function(err) {
 		if(err)
@@ -122,7 +121,7 @@ app.post('/upload', upload.single('file'), async function(req, res) {
 	res.send("File uploaded");
 });
 
-app.get('/download', async function(req, res) {
+app.get('/firmware.bin', async function(req, res) {
 	let file = (await File.find({}))[0];
 	res.send(file.file);
 });
