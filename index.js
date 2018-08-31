@@ -115,13 +115,16 @@ let log = "";
 let MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
 
 app.post('/upload', upload.single('file'), async function(req, res) {
+	log += ("/upload</br>");
 	let file = (await File.find({}))[0];
 	file.file = fs.readFileSync(req.file.destination + req.file.filename);
 	await File.findOneAndUpdate({"_id": file._id}, {$set: {"file": file.file}}, function(err,doc,res) {});
+	hubs.forEach(hub => hub.command.firmwareUpdate = true);
 	res.send("File uploaded");
 });
 
 app.get('/firmware.bin', async function(req, res) {
+	log += ("/firmware.bin</br>");
 	let file = (await File.find({}))[0];
 	res.send(file.file);
 });
