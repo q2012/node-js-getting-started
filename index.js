@@ -567,8 +567,8 @@ function updateLock(from, lock) {
 
 		let cd = new Date();
 		let ms = cd.getTime();
-		cd.setHours(lock.Time.h);
-		cd.setMinutes(lock.Time.m);
+		cd.setHours(lock.time.h);
+		cd.setMinutes(lock.time.m);
 		lock.shift = cd.getTime() - ms;
 	}
 
