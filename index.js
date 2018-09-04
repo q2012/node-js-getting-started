@@ -32,7 +32,75 @@ app.use((req, res, next) => {
 let fileShema = mongoose.Schema({
 	file: Buffer
 });
+
 let File = mongoose.model('File', fileShema);
+
+let commandShema = mongoose.Schema({
+	serialized: String
+});
+
+let openCloseShema = mongoose.Schema({
+	lock_h: Number,
+	lock_m: Number,
+	unlock_h: Number,
+	unlock_m: Number
+});
+
+let pairShema = mongoose.Schema({
+	key: String,
+	val: String
+});
+
+let lockShema = mongoose.Schema({
+	lockID: String,
+	lockName: String,
+	state: String,
+	setOpen: String,
+	time: {
+		h: Number,
+		m: Number,
+		n: Number
+	},
+	setTime: {
+		h: Number,
+		m: Number,
+		n: Number
+	},
+	shift: Number,
+	mode: String,
+	PIN: String,
+	battery: String,
+	signal: String,
+	openCloseTime: {
+		Monday: [openCloseShema],
+		Tuesday: [openCloseShema],
+		Wednesday: [openCloseShema],
+		Thursday: [openCloseShema],
+		Friday: [openCloseShema],
+		Saturday: [openCloseShema],
+		Sunday: [openCloseShema],
+		length: Number
+	},
+	qa: [pairShema],
+	curQuestion: Number,
+	command: commandShema
+});
+
+let hubShema = mongoose.Schema({
+	hubID: String,
+	hubName: String,
+	locks: [lockShema],
+	command: commandShema,
+	tempLocks: [lockShema],
+	recievedCommand: commandShema,
+	commandProcessed: commandShema
+});
+
+let userShema = mongoose.Schema({
+	userID: String,
+	amazonUID: String,
+	hubs: [hubShema]
+});
 
 function Pair(key, val) {
   this.key = key;
@@ -84,6 +152,8 @@ function Hub(hubID,hubName) {
   this.command = {};
 
   this.tempLocks = [];
+  this.recievedCommand = {};
+  this.commandProcessed = {};
 };
 
 function User(userID, amazonUID) {
@@ -102,8 +172,7 @@ let users = [];
 let hubs = [];
 let locks = [];
 
-let files = await File.find({});
-if(files.length < 1) {
+if((await File.find({})).length < 1) {
 	let file = new File({});
 	file.save(function(err) {
 		if(err)
@@ -113,6 +182,43 @@ if(files.length < 1) {
 
 let log = "";
 let MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
+
+app.get('/command-done', function(req, res) {
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+		res.send({"error": 1, "msg": "Hub not found"});
+	res.send(hub.commandProcessed);
+	if(hub.commandProcessed.end)
+		hub.commandProcessed = {};
+});
+
+app.post('/command-done', function(req, res) {
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+		res.send({"error": 1, "msg": "Hub not found"});
+	if(!req.body.command)
+		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
+	if(hub.commandProcessed.end)
+		hub.commandProcessed = {};
+	Object.getOwnPropertyNames(req.body.command).forEach(a => hub.commandProcessed[a] = req.body.command[a]);
+	res.send({"error": 0, "msg": "Command added"});
+});
+
+app.get('/recieved-command', function(req, res) {
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+		res.send({"error": 1, "msg": "Hub not found"});
+	res.send(hub.recievedCommand);
+	hub.recievedCommand = {};
+});
+
+app.post('/recieved-command', function(req, res) {
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+		res.send({"error": 1, "msg": "Hub not found"});
+	hub.recievedCommand = req.body.command;
+	res.send({"error": 0, "msg": "Recieved command saved"});
+});
 
 app.post('/upload', upload.single('file'), async function(req, res) {
 	log += ("/upload</br>");
@@ -319,24 +425,6 @@ app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query))
 });
 
 app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body));
-});
-
-function addTempLocks(from, to) {
-};
-
-app.get('/add-temp-locks', function(req, res) {
-	log += ("/add-temp-locks " + JSON.stringify(req.query) + "</br>");
-
-	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
-	if(!hub)
-	{
-		res.send({"error": 1, "msg": "Hub not found"});
-		return;
-	}
-
-	addTempLocks(req.query, hub);
-
-	res.send({"error": 0, "msg": "Locks successfully added", "locks": hub.tempLocks});
 });
 
 app.post('/add-temp-locks', function(req, res) {
