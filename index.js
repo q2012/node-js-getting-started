@@ -111,7 +111,7 @@ function Lock(lockID, lockName) {
   this.shift = 0;
   this.mode = MODE.fitness;
   this.PIN;
-  this.battery = '100';  
+  this.battery;  
   this.signal;
   
   this.openCloseTime = new OpenCloseTime(),
@@ -364,8 +364,8 @@ app.post('/command-done', async function(req, res) {
 	res.send({"error": 0, "msg": "Command added"});
 });
 
-app.get('/recieved-command', async function(req, res) {
-	log += ("/recieved-command " + JSON.stringify(req.query) + "</br>");
+app.get('/received-command', async function(req, res) {
+	log += ("/received-command " + JSON.stringify(req.query) + "</br>");
 	/*
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
@@ -387,8 +387,8 @@ app.get('/recieved-command', async function(req, res) {
 	await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"recievedCommand": JSON.stringify({})}});
 });
 
-app.post('/recieved-command', async function(req, res) {
-	log += ("/recieved-command " + JSON.stringify(req.body) + "</br>");
+app.post('/received-command', async function(req, res) {
+	log += ("/received-command " + JSON.stringify(req.body) + "</br>");
 	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
@@ -922,6 +922,7 @@ function pushCommand(from, to) {
 	}
 	from.updateLock?to.command.updateLock = 1:1==1;
 	*/
+	console.log(to);
 	let command = JSON.parse(to.command);
 
 	from.hubName?command.hubName = from.hubName:1==1;
@@ -1079,7 +1080,7 @@ app.post('/push-command', async function(req,res) {
 		return;
 	}
 
-	let lock = DBLock.findOne({"lockID": req.body.lockID}).exec();
+	let lock = await DBLock.findOne({"lockID": req.body.lockID}).exec();
 	if(!lock)
 	{
 		res.send({"error": 2, "msg": "Lock not found"});
@@ -1157,7 +1158,7 @@ app.get('/push-command', async function(req,res) {
 		return;
 	}
 
-	let lock = DBLock.findOne({"lockID": req.query.lockID}).exec();
+	let lock = await DBLock.findOne({"lockID": req.query.lockID}).exec();
 	if(!lock)
 	{
 		res.send({"error": 2, "msg": "Lock not found"});
@@ -1904,7 +1905,7 @@ app.use(function(err, req, res, next) {
 	res.status(500).send('Something bad happened!');
 });
 
-writeTestData();
+//writeTestData();
 
 app.listen(PORT, () => console.log(`Listening on ${ PORT }`));
 
