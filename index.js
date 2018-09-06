@@ -1558,13 +1558,13 @@ app.post('/locks', async function(req, res) {
 app.get('/hubs', async function(req, res) {	
 	log += ("/hubs " + JSON.stringify(req.query) + "</br>");
 	//res.send(hubs);
-	res.send(getHub(req.query.hubID, req.query.hubName));
+	res.send(await getHub(req.query.hubID, req.query.hubName));
 });
 
 app.post('/hubs', async function(req, res) {	
 	log += ("/hubs " + JSON.stringify(req.body) + "</br>"); 
 	//res.send(hubs);
-	res.send(getHub(req.body.hubID, req.body.hubName));
+	res.send(await getHub(req.body.hubID, req.body.hubName));
 });
 
 app.get('/users', async function(req, res) {	
