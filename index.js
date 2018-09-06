@@ -33,24 +33,6 @@ let fileShema = mongoose.Schema({
 	file: Buffer
 });
 
-let File = mongoose.model('File', fileShema);
-
-let commandShema = mongoose.Schema({
-	serialized: String
-});
-
-let openCloseShema = mongoose.Schema({
-	lock_h: Number,
-	lock_m: Number,
-	unlock_h: Number,
-	unlock_m: Number
-});
-
-let pairShema = mongoose.Schema({
-	key: String,
-	val: String
-});
-
 let lockShema = mongoose.Schema({
 	lockID: String,
 	lockName: String,
@@ -72,35 +54,47 @@ let lockShema = mongoose.Schema({
 	battery: String,
 	signal: String,
 	openCloseTime: {
-		Monday: [openCloseShema],
-		Tuesday: [openCloseShema],
-		Wednesday: [openCloseShema],
-		Thursday: [openCloseShema],
-		Friday: [openCloseShema],
-		Saturday: [openCloseShema],
-		Sunday: [openCloseShema],
+		Monday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Tuesday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Wednesday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Thursday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Friday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Saturday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
+		Sunday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
 		length: Number
 	},
-	qa: [pairShema],
+	qa: [{val: String, key: String}],
 	curQuestion: Number,
-	command: commandShema
+	command: String
 });
 
 let hubShema = mongoose.Schema({
 	hubID: String,
 	hubName: String,
-	locks: [lockShema],
-	command: commandShema,
-	tempLocks: [lockShema],
-	recievedCommand: commandShema,
-	commandProcessed: commandShema
+	locks: [{ type: mongoose.Schema.ObjectId, ref: 'Lock' }],
+	command: String,
+	tempLocks: [String],
+	weather: {
+		temperature: String,
+		pressure: String,
+		height: String,
+		humidity: String,
+		lastUpdate: Number
+	},
+	recievedCommand: String,
+	commandProcessed: String
 });
 
 let userShema = mongoose.Schema({
 	userID: String,
 	amazonUID: String,
-	hubs: [hubShema]
+	hubs: [{ type: mongoose.Schema.ObjectId, ref: 'Hub' }]
 });
+
+let File = mongoose.model('File', fileShema);
+let DBUser = mongoose.model('User', userShema);
+let DBHub = mongoose.model('Hub', hubShema);
+let DBLock = mongoose.model('Lock', lockShema);
 
 function Pair(key, val) {
   this.key = key;
@@ -124,7 +118,7 @@ function Lock(lockID, lockName) {
 
   this.qa = [];
   this.curQuestion = 0;
-  this.command = {};
+  this.command = "{}";
 };
 
 function OneOpenClose() {
@@ -148,12 +142,10 @@ function Hub(hubID,hubName) {
   this.hubID = hubID;
   this.hubName = hubName;
   this.locks = [];
-
-  this.command = {};
-
+  this.command = "{}";
+  this.commandProcessed = "{}";
+  this.recievedCommand = "{}";
   this.tempLocks = [];
-  this.recievedCommand = {};
-  this.commandProcessed = {};
 };
 
 function User(userID, amazonUID) {
@@ -183,40 +175,238 @@ if((await File.find({})).length < 1) {
 let log = "";
 let MODE = Object.freeze({fitness:"fitness", family:"family", biohack:"biohack"});
 
-app.get('/command-done', function(req, res) {
+async function clearDatabase() {
+	users = [];
+    locks = [];
+    hubs = [];
+
+    await DBUser.remove({}).exec();
+    await DBHub.remove({}).exec();
+    await DBLock.remove({}).exec();
+};
+
+async function writeTestData() {
+	if((await DBUser.find({})).length < 1 && (await DBHub.find({})).length < 1 && (await DBLock.find({})).length < 1)
+	{
+		await (new DBUser(new User('1', '1'))).save();
+		await (new DBUser(new User('2', '2'))).save();
+		await (new DBUser(new User('3', '3'))).save();
+		await (new DBUser(new User('4', '4'))).save();
+
+		await (new DBHub(new Hub('1','First'))).save();
+		await (new DBHub(new Hub('2','Second'))).save();
+		await (new DBHub(new Hub('3','First'))).save();
+		await (new DBHub(new Hub('4','Second'))).save();
+		await (new DBHub(new Hub('5','First'))).save();
+
+		await (new DBLock(new Lock('1','First'))).save();
+		await (new DBLock(new Lock('2','Second'))).save();
+		await (new DBLock(new Lock('3','First'))).save();
+		await (new DBLock(new Lock('4','First'))).save();
+		await (new DBLock(new Lock('5','Second'))).save();
+		await (new DBLock(new Lock('6','Third'))).save();
+		await (new DBLock(new Lock('7','First'))).save();
+		await (new DBLock(new Lock('8','Second'))).save();
+		await (new DBLock(new Lock('9','First'))).save();
+		await (new DBLock(new Lock('10','Second'))).save();
+
+		let instance = await DBHub.findOne({"hubID": '1'}).exec();
+		await DBUser.findOneAndUpdate({"userID": '1'}, {$push: {hubs: instance}}).exec();
+		instance = await DBHub.findOne({"hubID": '2'}).exec();
+		await DBUser.findOneAndUpdate({"userID": '1'}, {$push: {hubs: instance}}).exec();
+		instance = await DBHub.findOne({"hubID": '3'}).exec();
+		await DBUser.findOneAndUpdate({"userID": '2'}, {$push: {hubs: instance}}).exec();
+		instance = await DBHub.findOne({"hubID": '4'}).exec();
+		await DBUser.findOneAndUpdate({"userID": '2'}, {$push: {hubs: instance}}).exec();
+		instance = await DBHub.findOne({"hubID": '5'}).exec();
+		await DBUser.findOneAndUpdate({"userID": '3'}, {$push: {hubs: instance}}).exec();
+
+		instance = await DBLock.findOne({"lockID": '1'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '1'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '2'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '1'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '3'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '2'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '4'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '3'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '5'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '3'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '6'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '3'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '7'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '4'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '8'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '4'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '9'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '5'}, {$push: {locks: instance}}).exec();
+		instance = await DBLock.findOne({"lockID": '10'}).exec();
+		await DBHub.findOneAndUpdate({"hubID": '5'}, {$push: {locks: instance}}).exec();
+	}
+
+  users.push(new User('1', '1'));
+  users.push(new User('2', '2'));
+  users.push(new User('3', '3'));
+  users.push(new User('4', '4'));
+
+  hubs.push(new Hub('1','First'));
+  hubs.push(new Hub('2','Second'));
+  hubs.push(new Hub('3','First'));
+  hubs.push(new Hub('4','Second'));
+  hubs.push(new Hub('5','First'));
+
+  locks.push(new Lock('1','First'));
+  locks.push(new Lock('2','Second'));
+  locks.push(new Lock('3','First'));
+  locks.push(new Lock('4','First'));
+  locks.push(new Lock('5','Second'));
+  locks.push(new Lock('6','Third'));
+  locks.push(new Lock('7','First'));
+  locks.push(new Lock('8','Second'));
+  locks.push(new Lock('9','First'));
+  locks.push(new Lock('10','Second'));
+
+  users[0].hubs.push(hubs[0]);
+  users[0].hubs.push(hubs[1]);
+  users[1].hubs.push(hubs[2]);
+  users[1].hubs.push(hubs[3]);
+  users[2].hubs.push(hubs[4]);
+
+  users[0].hubs[0].locks.push(locks[0]);
+  users[0].hubs[0].locks.push(locks[1]);
+  users[0].hubs[1].locks.push(locks[2]);
+  users[1].hubs[0].locks.push(locks[3]);
+  users[1].hubs[0].locks.push(locks[4]);
+  users[1].hubs[0].locks.push(locks[5]);
+  users[1].hubs[1].locks.push(locks[6]);
+  users[1].hubs[1].locks.push(locks[7]);
+  users[2].hubs[0].locks.push(locks[8]);
+  users[2].hubs[0].locks.push(locks[9]);
+};
+
+app.get('/clear-data', async function(req,res) {  
+	log += ("/clear-data " + JSON.stringify(req.query) + "</br>"); 
+	await clearDatabase();  
+	res.send({"error": 0, "msg": "Data cleared"});
+});
+
+app.get('/revert-data', async function(req, res) { 
+	log += ("/revert-data" + JSON.stringify(req.query) + "</br>"); 
+	await clearDatabase(); 
+	await writeTestData(); 
+	res.send({"error": 0, "msg": "Data reverted to test"});
+});
+
+app.get('/write-test-data', async function(req,res) {  
+	log += ("/test-data " + JSON.stringify(req.query) + "</br>"); 
+	await writeTestData();  
+	res.send({"error": 0, "msg": "Test data added"});
+});
+
+app.get('/command-done', async function(req, res) {
+	log += ("/command-done " + JSON.stringify(req.query) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
+	{
 		res.send({"error": 1, "msg": "Hub not found"});
+	}
 	res.send(hub.commandProcessed);
 	if(hub.commandProcessed.end)
 		hub.commandProcessed = {};
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.query.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}	
+	let command = JSON.parse(hub.commandProcessed);
+	res.send(command);
+	if(command.end)
+		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"commandProcessed": JSON.stringify({})}});
 });
 
-app.post('/command-done', function(req, res) {
+app.post('/command-done', async function(req, res) {
+	log += ("/command-done " + JSON.stringify(req.body) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
+	{
 		res.send({"error": 1, "msg": "Hub not found"});
+	}
 	if(!req.body.command)
+	{
 		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
+	}
 	if(hub.commandProcessed.end)
 		hub.commandProcessed = {};
 	Object.getOwnPropertyNames(req.body.command).forEach(a => hub.commandProcessed[a] = req.body.command[a]);
 	res.send({"error": 0, "msg": "Command added"});
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+	}
+	if(!req.body.command)
+	{
+		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
+	}
+	console.log(hub.commandProcessed);
+	let command = JSON.parse(hub.commandProcessed);
+	if(command.end)
+		command = {};
+	Object.getOwnPropertyNames(req.body.command).forEach(a => command[a] = req.body.command[a]);
+	console.log(JSON.stringify(command));
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"commandProcessed": JSON.stringify(command)}});
+	res.send({"error": 0, "msg": "Command added"});
 });
 
-app.get('/recieved-command', function(req, res) {
+app.get('/recieved-command', async function(req, res) {
+	log += ("/recieved-command " + JSON.stringify(req.query) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
+	{
 		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
 	res.send(hub.recievedCommand);
 	hub.recievedCommand = {};
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.query.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	res.send(hub.recievedCommand);
+	await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"recievedCommand": JSON.stringify({})}});
 });
 
-app.post('/recieved-command', function(req, res) {
+app.post('/recieved-command', async function(req, res) {
+	log += ("/recieved-command " + JSON.stringify(req.body) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
+	{
 		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
 	hub.recievedCommand = req.body.command;
+	res.send({"error": 0, "msg": "Recieved command saved"});
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"recievedCommand": JSON.stringify(req.body.command)}});
 	res.send({"error": 0, "msg": "Recieved command saved"});
 });
 
@@ -231,12 +421,8 @@ app.post('/upload', upload.single('file'), async function(req, res) {
 
 app.get('/firmware.bin', async function(req, res) {
 	log += ("/firmware.bin</br>");
-	let file = (await File.find({}))[0];
-	res.send(file.file);
+	res.send((await File.find({}))[0].file);
 });
-
-function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
-};
 
 function oneDateIn(date,openClose) {
 
@@ -283,8 +469,8 @@ function dateIn(cd, lock) {
 	return arr.every(openClose => oneDateIn(cd, openClose));
 };
 
-function deleteUser(from) {
-	if(!from.userID)
+async function deleteUser(from) {
+	/*if(!from.userID)
 		return {"error": 9, "msg": "Not enough data"}
 
 	let user = users.findIndex(us => us.userID == from.userID);
@@ -301,15 +487,34 @@ function deleteUser(from) {
 
 	users.splice(user,1);
 	return {"error": 0, "msg": "User deleted"};
+	*/
+
+	if(!from.userID)
+		return {"error": 9, "msg": "Not enough data"};
+
+	let user = await DBUser.findOne({"userID": from.userID}).populate({path: 'hubs', populate: {path: 'locks'}}).exec();
+	if(!user)
+		return {"error": 1, "msg": "User not found"};
+	user.hubs.forEach(async (hub) => {
+		await DBLock.deleteMany({"lockID": {$in: hub.locks.map(el => el.lockID)}}).exec();
+	});
+	await DBHub.deleteMany({"hubID": {$in: user.hubs.map(el => el.hubID)}}).exec();
+	await DBUser.deleteOne({"userID": from.userID}).exec();
+	return {"error": 0, "msg": "User deleted"};
 };
 
-app.get('/user/delete', function(req, res) {	res.send(deleteUser(req.query));
+app.get('/user/delete', async function(req, res) {	
+	log += ("/user/delete " + JSON.stringify(req.query) + "</br>");
+	res.send(await deleteUser(req.query));
 });
 
-app.post('/user/delete', function(req,res) {	res.send(deleteUser(req.body));
+app.post('/user/delete', async function(req,res) {	
+	log += ("/user/delete " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await deleteUser(req.body));
 });
 
-function deleteHub(from) {
+async function deleteHub(from) {
+	/*
 	if(!from.hubID || !from.userID)
 		return {"error": 9, "msg": "Not enough data"}
 
@@ -328,15 +533,40 @@ function deleteHub(from) {
 	user.hubs.splice(hub,1);
 	hubs.splice(hubs.findIndex(hubs => hubs.hubID == userHub.hubID),1);
 	return {"error": 0, "msg": "Hub deleted"};
+	*/
+	if(!from.hubID || !from.userID)
+		return {"error": 9, "msg": "Not enough data"}
+
+	let user = await DBUser.findOne({"userID": from.userID}).populate({path: 'hubs', populate: {path: 'locks'}}).exec();
+
+	if(!user)
+		return {"error": 1, "msg": "User not found"};
+
+	let hub = user.hubs.findIndex(hub => hub.hubID == from.hubID);
+
+
+	if(hub == -1)
+		return {"error": 2, "msg": "Hub is not assigned to this user"};
+
+	await DBLock.deleteMany({"lockID": {$in: user.hubs[hub].locks.map(el => el.lockID)}}).exec();
+	user = await DBUser.findOne({"userID": from.userID}).exec();
+	await DBUser.findOneAndUpdate({"userID": from.userID}, {$pull: {"hubs": user.hubs[hub]}}).exec();
+	await DBHub.deleteOne({"hubID": from.hubID}).exec();
+	return {"error": 0, "msg": "Hub deleted"};
 };
 
-app.get('/hub/delete', function(req, res) {	res.send(deleteHub(req.query));
+app.get('/hub/delete', async function(req, res) {	
+	log += ("/hub/delete " + JSON.stringify(req.query) + "</br>"); 
+	res.send(await deleteHub(req.query));
 });
 
-app.post('/hub/delete', function(req, res) {	res.send(deleteHub(req.body));
+app.post('/hub/delete', async function(req, res) {	
+	log += ("/hub/delete " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await deleteHub(req.body));
 });
 
-function deleteLock(from) {
+async function deleteLock(from) {
+	/*
 	if(!from.hubID || !from.lockID)
 		return {"error": 9, "msg": "Not enough data"}
 
@@ -352,15 +582,36 @@ function deleteLock(from) {
 	hub.locks.splice(lock,1);
 	locks.splice(locks.findIndex(locks => locks.lockID == from.lockID),1);
 	return {"error": 0, "msg": "Lock deleted"};
+	*/
+
+	if(!from.hubID || !from.lockID)
+		return {"error": 9, "msg": "Not enough data"};
+
+	let hub = await DBHub.findOne({"hubID": from.hubID}).populate([{path: 'locks'}, {path: 'tempLocks'}]).exec();
+
+	if(!hub)
+		return {"error": 1, "msg": "Hub not found"};
+
+	let lock = hub.locks.findIndex(hub => hub.lockID == from.lockID);
+	if(lock == -1)
+		return {"error": 2, "msg": "Lock is not assigned to this hub"};
+	await DBHub.findOneAndUpdate({"hubID": from.hubID}, {$pull: {"locks": hub.locks[lock]}}).exec();
+	await DBLock.deleteOne({"lockID": from.lockID}).exec();
+	return {"error": 0, "msg": "Lock deleted"};
 };
 
-app.get('/lock/delete', function(req, res) {	res.send(deleteLock(req.query));
+app.get('/lock/delete', async function(req, res) {	
+	log += ("/lock/delete " + JSON.stringify(req.query) + "</br>"); 
+	res.send(await deleteLock(req.query));
 });
 
-app.post('/lock/delete', function(req, res) {	res.send(deleteLock(req.body));
+app.post('/lock/delete', async function(req, res) {	
+	log += ("/lock/delete " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await deleteLock(req.body));
 });
 
-function registerUser(from) {
+async function registerUser(from) {
+	/*
 	if(!from.userID)
 		return {"error": 9, "msg": "Not enough data"};
 
@@ -370,15 +621,31 @@ function registerUser(from) {
 	let user = new User(from.userID, from.amazonUID?user.amazonUID = from.amazonUID:"");
 	users.push(user);
 	return {"error": 0, "msg": "User created"};
+	*/
+
+	if(!from.userID)
+		return {"error": 9, "msg": "Not enough data"};
+	
+	let user = await DBUser.findOne({"userID": from.userID}).exec();
+	if(user)
+		return {"error": 1, "msg": "User already exists"};
+
+	await (new DBUser(new User(from.userID, from.amazonUID?from.amazonUID:""))).save();
+	return {"error": 0, "msg": "User created"};
 };
 
-app.get('/user/register', function(req, res) {	res.send(registerUser(req.query));
+app.get('/user/register', async function(req, res) {	
+	log += ("/user/register " + JSON.stringify(req.query) + "</br>"); 
+	res.send(await registerUser(req.query));
 });
 
-app.post('/user/register', function(req, res) {	res.send(registerUser(req.body));
+app.post('/user/register', async function(req, res) {	
+	log += ("/user/register " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await registerUser(req.body));
 });
 
-function registerHub(from) {
+async function registerHub(from) {
+	/*
 	if(!from.hubID || !from.userID)
 		return {"error": 9, "msg": "Not enough data"};
 
@@ -393,15 +660,35 @@ function registerHub(from) {
 	hubs.push(hub);
 	user.hubs.push(hub);
 	return {"error": 0, "msg": "Hub registred successfully"};
+	*/
+	if(!from.hubID || !from.userID)
+		return {"error": 9, "msg": "Not enough data"};
+
+	let user = await DBUser.findOne({"userID": from.userID}).exec();
+	let hub = await DBHub.findOne({"hubID": from.hubID}).exec();
+	if(!user)
+		return {"error": 1, "msg": "User not found"};
+	if(hub)
+		return {"error": 10, "msg": "Hub with this ID already exists"};
+
+	hub = await (new DBHub(new Hub(from.hubID,from.hubName?from.hubName:""))).save();
+	console.log(hub);
+	await DBUser.findOneAndUpdate({"userID": from.userID}, {$push: {hubs: hub}}).exec();
+	return {"error": 0, "msg": "Hub registred successfully"};
 };
 
-app.get('/hub/register', function(req, res) {	res.send(registerHub(req.query));
+app.get('/hub/register', async function(req, res) {	
+	log += ("/hub/register " + JSON.stringify(req.query) + "</br>"); 
+	res.send(await registerHub(req.query));
 });
 
-app.post('/hub/register', function(req, res) {	res.send(registerHub(req.body));
+app.post('/hub/register', async function(req, res) {	
+	log += ("/hub/register " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await registerHub(req.body));
 });
 
-function registerLock(from) {
+async function registerLock(from) {
+	/*
 	if(!from.lockID || !from.hubID)
 	{
 		return {"error": 9, "msg": "Not enough data"};
@@ -419,31 +706,72 @@ function registerLock(from) {
 	locks.push(lock);
 	hub.locks.push(lock);
 	return {"error": 0, "msg": "Lock registred successfully"};
+	*/
+
+	if(!from.lockID || !from.hubID)
+		return {"error": 9, "msg": "Not enough data"};
+
+	let hub = await DBHub.findOne({"hubID": from.hubID}).exec();
+	let lock = await DBLock.findOne({"lockID": from.lockID}).exec();
+
+	if(!hub)
+		return {"error": 1, "msg": "Hub not found"};
+	if(lock)
+		return {"error": 10, "msg": "Lock with this ID already exists"};
+
+	lock = await (new DBLock(new Lock(from.lockID,from.lockName?from.lockName:""))).save();
+	await DBHub.findOneAndUpdate({"hubID": from.hubID}, {$push: {locks: lock}}).exec();
+	return {"error": 0, "msg": "Lock registred successfully"};
 };
 
-app.get('/lock/register', function(req, res) {	res.send(registerLock(req.query));
+app.get('/lock/register', async function(req, res) {	
+	log += ("/lock/register " + JSON.stringify(req.query) + "</br>"); 
+	res.send(await registerLock(req.query));
 });
 
-app.post('/lock/register', function(req, res) {	res.send(registerLock(req.body));
+app.post('/lock/register', async function(req, res) {	
+	log += ("/lock/register " + JSON.stringify(req.body) + "</br>"); 
+	res.send(await registerLock(req.body));
 });
 
-app.post('/add-temp-locks', function(req, res) {
+app.post('/add-temp-locks', async function(req, res) {
 	log += ("/add-temp-locks " + JSON.stringify(req.body) + "</br>");
-
-	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	/*let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
 		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	if(!req.body.tempLocks)
+	{
+		res.send({"error": 2, "msg": "Locks not found"});
 		return;
 	}
 
 	hub.tempLocks = req.body.tempLocks;
 
 	res.send({"error": 0, "msg": "Locks successfully added", "locks": hub.tempLocks});
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	if(!req.body.tempLocks)
+	{
+		res.send({"error": 2, "msg": "Locks not found"});
+		return;
+	}
+
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": req.body.tempLocks}}).exec();
+	res.send({"error": 0, "msg": "Locks successfully added", "locks": req.body.tempLocks});
 });
 
-app.post('/register-temp-locks', function(req, res) {
+app.post('/register-temp-locks', async function(req, res) {
 	log += ('/register-temp-locks' + JSON.stringify(req.body) + '</br>');
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
@@ -465,10 +793,33 @@ app.post('/register-temp-locks', function(req, res) {
 
 	delete hub.command.error;
 	delete hub.command.msg;
+	*/
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	if(!req.body.tempLocks)
+	{
+		res.send({"error": 2, "msg": "Locks not found"});
+		return;
+	}
+
+	hub.command.tempLocks = req.body.tempLocks;
+	//await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": req.body.tempLocks, "command": JSON.stringify(hub.command)}}).exec();
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": [], "command": JSON.stringify(hub.command)}}).exec();
+	hub.command.error = 0;
+	hub.command.msg = "Locks array to add added";
+	res.send(hub.command);
 }); 
 
-function pushCommand(from, to) {
+function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
+};
 
+function pushCommand(from, to) {
+	/*
 	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
 	from.signalLock?to.command.signalLock = from.signalLock:1==1;
 	from.findLocks?to.command.findLocks = from.findLocks:1==1;
@@ -570,10 +921,104 @@ function pushCommand(from, to) {
 		arr.forEach(el => dest.push(el));
 	}
 	from.updateLock?to.command.updateLock = 1:1==1;
+	*/
+	let command = JSON.parse(to.command);
+
+	from.hubName?command.hubName = from.hubName:1==1;
+	from.signalLock?command.signalLock = from.signalLock:1==1;
+	from.findLocks?command.findLocks = from.findLocks:1==1;
+	from.connect?command.connect = from.connect:1==1;
+	from.disconnect?command.disconnect = from.disconnect:1==1;
+
+	from.lockName?command.lockName = from.lockName:1==1;
+	from.setOpen?command.setOpen = from.setOpen:1==1;
+	from.signal?command.signal = from.signal:1==1;
+	from.PIN?command.PIN = from.PIN:1==1;
+	from.mode?command.mode = from.mode:1==1;
+	from.updateLock?command.updateLock = 1:1==1;
+
+	(from.setTimeN && from.setTimeM && from.setTimeH)?(command.setTimeN = parseInt(from.setTimeN), command.setTimeM = parseInt(from.setTimeM), command.setTimeH = parseInt(from.setTimeH)):1==1;
+
+	if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && (from.setCloseTimeN == from.setOpenTimeN))
+	{
+		let arr,dest = [];
+		if(!command.openCloseTime)
+			command.openCloseTime = {};
+		switch(parseInt(from.setCloseTimeN))
+		{
+			case 1:
+				arr = to.openCloseTime.Monday;
+				command.openCloseTime.Monday = [];
+				dest = command.openCloseTime.Monday;
+				break;
+			case 2:
+				arr = to.openCloseTime.Tuesday;
+				command.openCloseTime.Tuesday = [];
+				dest = command.openCloseTime.Tuesday;
+				break;
+			case 3:
+				arr = to.openCloseTime.Wednesday;
+				command.openCloseTime.Wednesday = [];
+				dest = command.openCloseTime.Wednesday;
+				break;
+			case 4:
+				arr = to.openCloseTime.Thursday;
+				command.openCloseTime.Thursday = [];
+				dest = command.openCloseTime.Thursday;
+				break;
+			case 5:
+				arr = to.openCloseTime.Friday;
+				command.openCloseTime.Friday = [];
+				dest = command.openCloseTime.Friday;
+				break;
+			case 6:
+				arr = to.openCloseTime.Saturday;
+				command.openCloseTime.Saturday = [];
+				dest = command.openCloseTime.Saturday;
+				break;
+			case 7:
+				arr = to.openCloseTime.Sunday;
+				command.openCloseTime.Sunday = [];
+				dest = command.openCloseTime.Sunday;
+				break;
+			default:
+				arr = undefined;
+		}
+
+		if(arr && from.setOpenCloseTimeDel)
+		{
+			let ind = arr.findIndex(time => (time.lock_h == from.setCloseTimeH && time.lock_m == from.setCloseTimeM && time.unlock_h == from.setOpenTimeH && time.unlock_m == from.setOpenTimeM));
+			if(ind >= 0)
+			{
+				arr.splice(ind,1);
+				let atom = {};
+				atom.lock_h = 99;
+				atom.lock_m = 99;
+				atom.unlock_h = 99;
+				atom.unlock_m = 99;
+				arr.push(atom);
+			}
+		}
+		else if(arr && checkLengthOpenCloseArr(arr,1))
+		{
+			let atom = {};
+			atom.lock_h = parseInt(from.setCloseTimeH);
+			atom.lock_m = parseInt(from.setCloseTimeM);
+			atom.unlock_h = parseInt(from.setOpenTimeH);
+			atom.unlock_m = parseInt(from.setOpenTimeM);
+
+			arr.splice(arr.findIndex(time => time.lock_h == 99),1);
+			arr.push(atom);
+		}
+		arr.forEach(el => dest.push(el));
+	}
+
+	to.command = JSON.stringify(command);
 };
 
-app.post('/push-command', function(req,res) {
+app.post('/push-command', async function(req,res) {
   log += ("/push-command " + JSON.stringify(req.body) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
 	{
@@ -615,10 +1060,46 @@ app.post('/push-command', function(req,res) {
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
 	delete lock.command.msg;
+	*/
+
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).populate({path: "locks"}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	if(!req.body.lockID)
+	{
+		pushCommand(req.body, hub);
+
+		await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"command": hub.command}}).exec();
+
+		res.send({"error": 0, "msg": "Command added", "command": hub.command});
+		return;
+	}
+
+	let lock = DBLock.findOne({"lockID": req.body.lockID}).exec();
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.body.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+	pushCommand(req.body, lock);
+	await DBLock.findOneAndUpdate({"lockID": req.body.lockID}, {$set: {"command": lock.command}}).exec();
+	res.send({"error": 0, "msg": "Command added", "command": lock.command});
 });
 
-app.get('/push-command', function(req,res) {
+app.get('/push-command', async function(req,res) {
   log += ("/push-command " + JSON.stringify(req.query) + "</br>");
+	/*
 	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
 	if(!hub)
 	{
@@ -660,36 +1141,162 @@ app.get('/push-command', function(req,res) {
 	res.send(JSON.stringify(lock.command));
 	delete lock.command.error;
 	delete lock.command.msg;
+	*/
+	let hub = await DBHub.findOne({"hubID": req.query.hubID}).populate({path: "locks"}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	if(!req.query.lockID)
+	{
+		pushCommand(req.query, hub);
+		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"command": hub.command}}).exec();
+		res.send({"error": 0, "msg": "Command added", "command": hub.command});
+		return;
+	}
+
+	let lock = DBLock.findOne({"lockID": req.query.lockID}).exec();
+	if(!lock)
+	{
+		res.send({"error": 2, "msg": "Lock not found"});
+		return;
+	}
+
+	if(!hub.locks.find(lock => lock.lockID == req.query.lockID))
+	{
+		res.send({"error": 3, "msg": "Lock is not assigned to this hub"});
+		return;
+	}
+
+	pushCommand(req.query, lock);
+	await DBLock.findOneAndUpdate({"lockID": req.query.lockID}, {$set: {"command": lock.command}}).exec();
+	res.send({"error": 0, "msg": "Command added", "command": lock.command});
+	res.send(lock.command);
 });
+
+async function updateHub(from, hub) {
+
+	let cd;
+	from.humidity?cd = new Date().getTime():1==1;
+	from.pressure?cd = new Date().getTime():1==1;
+	from.temperature?cd = new Date().getTime():1==1;
+	from.height?cd = new Date().getTime():1==1;
+
+	await DBHub.findOneAndUpdate({"hubID": hub.hubID}, {$set: {
+		"weather": {
+			"humidity": from.humidity?from.humidity:hub.weather.humidity, 
+			"pressure": from.pressure?from.pressure:hub.weather.pressure, 
+			"temperature": from.temperature?from.temperature:hub.weather.temperature, 
+			"height": from.height?from.height:hub.weather.height, 
+			"lastUpdate": cd?cd:hub.weather.lastUpdate
+		}
+	}}).exec();
+};
+
+async function getCommand(hub) {
+	let resp = {};
+	let command = JSON.parse(hub.command);
+	resp.hub = (Object.keys(command).length === 0)?undefined:command;
+	await DBHub.findOneAndUpdate({"hubID": hub.hubID}, {$set: {"command": JSON.stringify({})}}).exec();
+	resp.locks = [];
+	hub.locks.forEach(async (lock) => {
+		command = JSON.parse(lock.command); 
+		if(Object.keys(lock.command).length == 0) {
+			command.UUID = lock.lockID; 
+			resp.locks.push(command);
+			await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: {"command": JSON.stringify({})}}).exec();
+		}
+
+	});
+	resp.locks.length == 0?resp.locks = undefined:1==1;
+	return resp;
+};
+
+app.post('/get-full-command', async function(req, res) {
+	log += ("/get-full-command " + JSON.stringify(req.body) + "</br>");
+	/*
+	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	updateHub(req.body, hub);
+	let resp = getCommand(hub);
+	res.send(resp);
+	hub.command = {};
+	hub.locks.forEach(lock => lock.command = {});
+	*/
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).populate('locks').exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	await updateHub(req.body, hub);
+	res.send(await getCommand(hub));
+});
+
+app.get('/get-full-command', async function(req, res) {
+	log += ("/get-command " + JSON.stringify(req.query) + "</br>");
+	/*
+	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+
+	updateHub(req.query, hub);
+	let resp = getCommand(hub);
+	res.send(resp);
+	hub.command = {};
+	hub.locks.forEach(lock => lock.command = {});
+	*/
+	let hub = await DBHub.findOne({"hubID": req.query.hubID}).populate('locks').exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	await updateHub(req.query, hub);
+	res.send(await getCommand(hub));
+});
+
 
 function updateOpenCloseTime(to, from) {
 	from.forEach((el,i) => {
-		to[i].lock_h = parseInt(el.substr(0,2));
-		to[i].lock_m = parseInt(el.substr(2,2));
-		to[i].unlock_h = parseInt(el.substr(4,2));
-		to[i].unlock_m = parseInt(el.substr(6,2));
+		let k = {};
+		k.lock_h = parseInt(el.substr(0,2));
+		k.lock_m = parseInt(el.substr(2,2));
+		k.unlock_h = parseInt(el.substr(4,2));
+		k.unlock_m = parseInt(el.substr(6,2));
+		to.push(k);
 	});
 };
 
-function updateLock(from, lock) {
-
+async function updateLock(from, lock) {
+	/*
 	from.lockName?lock.lockName = from.lockName:lock.lockName;
     from.state?lock.state = from.state:lock.state;
     from.mode?lock.mode = from.mode:lock.mode;
     from.PIN?lock.PIN = from.PIN:lock.PIN;
     from.battery?lock.battery = from.battery:lock.battery;
 
-	from.timeN?lock.time.n = parseInt(from.timeN):1==1;
-	if(from.timeH && from.timeM) 
-	{
-	    lock.time.h = parseInt(from.timeH);
+	if(from.timeN && from.timeH && from.timeM) {
 		lock.time.m = parseInt(from.timeM);
+		lock.time.h = parseInt(from.timeH);
+		lock.time.n = parseInt(from.timeN);
+		let day = lock.time.n == 7?0:lock.time.n;
 
 		let cd = new Date();
 		let ms = cd.getTime();
-		cd.setHours(lock.time.h);
-		cd.setMinutes(lock.time.m);
-		lock.shift = cd.getTime() - ms;
+		cd.setUTCHours(lock.time.h);
+		cd.setUTCMinutes(lock.time.m);
+		cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-day));
+		lock.shift = ms - cd.getTime();
 	}
 
 	if(from.Monday)
@@ -706,56 +1313,87 @@ function updateLock(from, lock) {
 		updateOpenCloseTime(lock.openCloseTime.Saturday, from.Saturday.split(" "));
 	if(from.Sunday)
 		updateOpenCloseTime(lock.openCloseTime.Sunday, from.Sunday.split(" "));
-};
+	*/
+	let cd = new Date();
+	let ms = cd.getTime();
 
-function updateHub(from, hub) {
-	let cd = new Date().getTime();
-	from.humidity?(hub.humidity = from.humidity, hub.lastUpdate = cd):1==1;
-	from.pressure?(hub.pressure = from.pressure, hub.lastUpdate = cd):1==1;
-	from.temperature?(hub.temperature = from.temperature, hub.lastUpdate = cd):1==1;
-	from.height?(hub.height = from.height, hub.lastUpdate = cd):1==1;
-};
+	let set = {};
 
-function getCommand(hub) {
-	let resp = {};
-	resp.hub = (Object.keys(hub.command).length === 0 && hub.command.constructor === Object)?undefined:hub.command;
-	resp.locks = [];
-	hub.locks.forEach(lock => (Object.keys(lock.command).length === 0 && lock.command.constructor === Object)?1==1:(lock.command.UUID = lock.lockID, resp.locks.push(lock.command)));
-	resp.locks.length == 0?resp.locks = undefined:1==1;
-	return resp;
-};
+	from.lockName?set.lockName = from.lockName:lock.lockName;
+    from.state?set.state = from.state:lock.state;
+    from.mode?set.mode = from.mode:lock.mode;
+    from.PIN?set.PIN = from.PIN:lock.PIN;
+    from.battery?set.battery = from.battery:lock.battery;
 
-app.post('/get-full-command', function(req, res) {
-	log += ("/get-full-command " + JSON.stringify(req.body) + "</br>");
-	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
-	if(!hub)
-	{
-		res.send({"error": 1, "msg": "Hub not found"});
-		return;
-	}
-	updateHub(req.body, hub);
-	let resp = getCommand(hub);
-	res.send(resp);
-	hub.command = {};
-	hub.locks.forEach(lock => lock.command = {});
-});
+    if(from.timeN && from.timeH && from.timeM) {
+    	set.time = {};
+		set.time.m = parseInt(from.timeM);
+		set.time.h = parseInt(from.timeH);
+		set.time.n = parseInt(from.timeN);
+		let day = lock.time.n == 7?0:lock.time.n;
 
-app.get('/get-full-command', function(req, res) {
-	log += ("/get-command " + JSON.stringify(req.query) + "</br>");
-	let hub = hubs.find(hub => hub.hubID == req.query.hubID);
-	if(!hub)
-	{
-		res.send({"error": 1, "msg": "Hub not found"});
-		return;
+		let cd = new Date();
+		let ms = cd.getTime();
+		cd.setUTCHours(lock.time.h);
+		cd.setUTCMinutes(lock.time.m);
+		cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-day));
+		set.shift = ms - cd.getTime();
 	}
 
-	updateHub(req.query, hub);
-	let resp = getCommand(hub);
-	res.send(resp);
-	hub.command = {};
-	hub.locks.forEach(lock => lock.command = {});
-});
+	/*	
+	await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: {
+		"lockName": from.lockName?from.lockName:lock.lockName,
+	    "state: "from.state?from.state:lock.state,
+	    "mode": from.mode?from.mode:lock.mode,
+	    "PIN": from.PIN?from.PIN:lock.PIN,
+	    "battery": from.battery?from.battery:lock.battery,
+	    "time": {
+	    	"n": (from.timeN && from.timeH && from.timeM)?from.timeN:lock.time.n,
+	    	"h": (from.timeN && from.timeH && from.timeM)?from.timeH:lock.time.h,
+	    	"m": (from.timeN && from.timeH && from.timeM)?from.timeM:lock.time.m
+	    },
+	    "shift": (from.timeN && from.timeH && from.timeM)?
+	    	(cd.setUTCHours(from.timeH),
+	    	cd.setUTCMinutes(from.timeM),
+	    	cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-(from.timeN == 7?0:from.timeN))),
+	    	ms - cd.getTime()):lock.shift,
+	    ""
+	}}).exec();*/
 
+	set.openCloseTime = {};
+	if(from.Monday) {
+		set.openCloseTime.Monday = [];
+		updateOpenCloseTime(set.openCloseTime.Monday, from.Monday.split(" "));
+	}
+	if(from.Tuesday) {
+		set.openCloseTime.Tuesday = [];
+		updateOpenCloseTime(set.openCloseTime.Tuesday, from.Tuesday.split(" "));
+	}
+	if(from.Wednesday) {
+		set.openCloseTime.Wednesday = [];
+		updateOpenCloseTime(set.openCloseTime.Wednesday, from.Wednesday.split(" "));
+	}
+	if(from.Thursday) {
+		set.openCloseTime.Thursday = [];
+		updateOpenCloseTime(set.openCloseTime.Thursday, from.Thursday.split(" "));
+	}
+	if(from.Friday) {
+		set.openCloseTime.Friday = [];
+		updateOpenCloseTime(set.openCloseTime.Friday, from.Friday.split(" "));
+	}
+	if(from.Saturday) {
+		set.openCloseTime.Saturday = [];
+		updateOpenCloseTime(set.openCloseTime.Saturday, from.Saturday.split(" "));
+	}
+	if(from.Sunday) {
+		set.openCloseTime.Sunday = [];
+		updateOpenCloseTime(set.openCloseTime.Sunday, from.Sunday.split(" "));
+	}
+	Object.keys(set.openCloseTime).length == 0?set.openCloseTime = undefined:1==1;
+
+	return await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: set}).exec();
+};
+/*
 app.post('/get-command', function(req,res) {
   log += ("/get-command " + JSON.stringify(req.body) + "</br>");
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
@@ -825,9 +1463,11 @@ app.get('/get-command', function(req,res) {
 	res.send(JSON.stringify(lock.command));
 	lock.command = {};
 });
+*/
 
-app.get('/update-lock', function(req, res) {
+app.get('/update-lock', async function(req, res) {
   log += ("/update-lock " + JSON.stringify(req.query) + "</br>");
+  /*
 	let lock = locks.find(lock => lock.lockID == req.query.lockID);
 	if(lock)
 	{
@@ -840,10 +1480,21 @@ app.get('/update-lock', function(req, res) {
 	    return;
 	}
 	res.sendStatus(404);
+	*/
+
+	let lock = await DBLock.findOne({"lockID": req.query.lockID}).exec();
+	if(!lock)
+	{
+		res.send({"error": 1, "msg": "Lock not found"});
+		return;
+	}
+	lock = await updateLock(req.query, lock);
+	res.send(lock);
 });
 
-app.post('/update-lock', function(req, res) {
+app.post('/update-lock', async function(req, res) {
   log += ("/update-lock " + JSON.stringify(req.body) + "</br>");
+  /*
 	let lock = locks.find(lock => lock.lockID == req.body.lockID);
 	if(lock)
 	{
@@ -856,74 +1507,78 @@ app.post('/update-lock', function(req, res) {
 	    return;
 	}
 	res.sendStatus(404);
+	*/
+
+	let lock = await DBLock.findOne({"lockID": req.body.lockID}).exec();
+	if(!lock)
+	{
+		res.send({"error": 1, "msg": "Lock not found"});
+		return;
+	}
+	lock = await updateLock(req.body, lock);
+	res.send(lock);
 });
 
-function writeTestData() {
-  users = [];
-  locks = [];
-  hubs = [];
-
-  users.push(new User('1', '1'));
-  users.push(new User('2', '2'));
-  users.push(new User('3', '3'));
-  users.push(new User('4', '4'));
-
-  hubs.push(new Hub('30AEA4199554test','First'));
-  hubs.push(new Hub('2','Second'));
-  hubs.push(new Hub('3','First'));
-  hubs.push(new Hub('4','Second'));
-  hubs.push(new Hub('30AEA4199554','First'));
-
-  locks.push(new Lock('F0F8F26F7748test','First'));
-  locks.push(new Lock('B091226945A2test','Second'));
-  locks.push(new Lock('3','First'));
-  locks.push(new Lock('4','First'));
-  locks.push(new Lock('5','Second'));
-  locks.push(new Lock('6','Third'));
-  locks.push(new Lock('7','First'));
-  locks.push(new Lock('8','Second'));
-  locks.push(new Lock('F0F8F26F7748','First'));
-  locks.push(new Lock('B091226945A2','Second'));
-
-  users[0].hubs.push(hubs[0]);
-  users[0].hubs.push(hubs[1]);
-  users[1].hubs.push(hubs[2]);
-  users[1].hubs.push(hubs[3]);
-  users[2].hubs.push(hubs[4]);
-
-  users[0].hubs[0].locks.push(locks[0]);
-  users[0].hubs[0].locks.push(locks[1]);
-  users[0].hubs[1].locks.push(locks[2]);
-  users[1].hubs[0].locks.push(locks[3]);
-  users[1].hubs[0].locks.push(locks[4]);
-  users[1].hubs[0].locks.push(locks[5]);
-  users[1].hubs[1].locks.push(locks[6]);
-  users[1].hubs[1].locks.push(locks[7]);
-  users[2].hubs[0].locks.push(locks[8]);
-  users[2].hubs[0].locks.push(locks[9]);
+async function getUser(ID, AUID) {
+	if(ID)
+		return await DBUser.findOne({"userID": ID}).populate({path: "hubs", populate: {path: "locks"}}).exec();
+	if(AUID)
+		return await DBUser.findOne({"amazonUID": AUID}).populate({path: "hubs", populate: {path: "locks"}}).exec();
+	return await DBUser.find({}).populate({path: "hubs", populate: {path: "locks"}}).exec();
 };
 
-app.get('/test-data', function(req,res) {  log += ("/test-data " + JSON.stringify(req.query) + "</br>"); writeTestData();  res.sendStatus(201);
+async function getHub(ID, Name) {
+	if(ID)
+		return await DBHub.findOne({"hubID": ID}).populate("locks").exec();
+	if(Name)
+		return await DBHub.findOne({"hubName": Name}).populate("locks").exec();
+	return await DBHub.find({}).populate("locks").exec();
+};
+
+async function getLock(ID, Name) {
+	if(ID)
+		return await DBLock.findOne({"lockID": ID}).exec();
+	if(Name)
+		return await DBLock.findOne({"lockName": Name}).exec();
+	return await DBLock.find({}).exec();
+};
+
+app.get('/locks', async function(req, res) {	
+	log += ("/locks " + JSON.stringify(req.query) + "</br>");
+	//res.send(locks);
+	res.send(await getLock(req.query.lockID, req.query.lockName));
 });
 
-app.get('/locks', function(req, res) {	log += ("/locks " + JSON.stringify(req.query) + "</br>"); res.send(JSON.stringify(locks));
+app.post('/locks', async function(req, res) {	
+	log += ("/locks " + JSON.stringify(req.body) + "</br>"); 
+	//res.send(locks);
+	res.send(await getLock(req.body.lockID, req.body.lockName));
 });
 
-app.get('/hubs', function(req, res) {	log += ("/hubs " + JSON.stringify(req.query) + "</br>"); res.send(JSON.stringify(hubs));
+app.get('/hubs', async function(req, res) {	
+	log += ("/hubs " + JSON.stringify(req.query) + "</br>");
+	//res.send(hubs);
+	res.send(getHub(req.query.hubID, req.query.hubName));
 });
 
-app.get('/users', function(req, res) {	log += ("/users " + JSON.stringify(req.query) + "</br>"); res.send(JSON.stringify(users));
+app.post('/hubs', async function(req, res) {	
+	log += ("/hubs " + JSON.stringify(req.body) + "</br>"); 
+	//res.send(hubs);
+	res.send(getHub(req.body.hubID, req.body.hubName));
 });
 
-app.post('/locks', function(req, res) {	log += ("/locks " + JSON.stringify(req.body) + "</br>"); res.send(JSON.stringify(locks));
+app.get('/users', async function(req, res) {	
+	log += ("/users " + JSON.stringify(req.query) + "</br>"); 
+	//res.send(users);
+	res.send(await getUser(req.query.userID, req.query.amazonUID));
 });
 
-app.post('/hubs', function(req, res) {	log += ("/hubs " + JSON.stringify(req.body) + "</br>"); res.send(JSON.stringify(hubs));
+app.post('/users', async function(req, res) {	
+	log += ("/users " + JSON.stringify(req.body) + "</br>"); 
+	//res.send(users);
+	res.send(await getUser(req.body.userID, req.body.amazonUID));
 });
-
-app.post('/users', function(req, res) {	log += ("/users " + JSON.stringify(req.body) + "</br>"); res.send(JSON.stringify(users));
-});
-
+/*
 app.get('/hub', function(req, res) {
   log += ("/hub " + JSON.stringify(req.query) + "</br>");
   if(req.query.id && hubs[req.query.id])
@@ -931,6 +1586,18 @@ app.get('/hub', function(req, res) {
     req.query.hubName?hubs[req.query.id].hubName = req.query.hubName:hubs[req.query.id].hubName;
     req.query.hubID?hubs[req.query.id].hubID = req.query.hubID:hubs[req.query.id].hubID;
     res.send(JSON.stringify(hubs[req.query.id]));
+    return;
+  }
+  res.sendStatus(404);
+});
+
+app.post('/hub', function(req,res) {
+  log += ("/hub " + JSON.stringify(req.body) + "</br>");
+  if(req.body.id && hubs[req.body.id])
+  {
+    req.body.hubName?hubs[req.body.id].hubName = req.body.hubName:hubs[req.body.id].hubName;
+    req.body.hubID?hubs[req.body.id].hubID = req.body.hubID:hubs[req.body.id].hubID;
+    res.send(JSON.stringify(hubs[req.body.id]));
     return;
   }
   res.sendStatus(404);
@@ -971,41 +1638,6 @@ app.get('/lock', function(req, res) {
   res.sendStatus(404);
 });
 
-app.get('/user', function(req, res) {
-  log += ("/user " + JSON.stringify(req.query) + "</br>");
-  if(req.query.id && users[req.query.id])
-  {
-    req.query.userID?users[req.query.id].userID = req.query.userID:users[req.query.id].userID;
-    req.query.amazonUID?users[req.query.id].amazonUID = req.query.amazonUID:users[req.query.id].amazonUID;
-    res.send(JSON.stringify(users[req.query.id]));
-    return;
-  }
-  res.sendStatus(404);
-});
-
-app.post('/hub', function(req,res) {
-  log += ("/hub " + JSON.stringify(req.body) + "</br>");
-    if(req.body.id && hubs[req.body.id])
-    {
-      req.body.hubName?hubs[req.body.id].hubName = req.body.hubName:hubs[req.body.id].hubName;
-      req.body.hubID?hubs[req.body.id].hubID = req.body.hubID:hubs[req.body.id].hubID;
-      res.send(JSON.stringify(hubs[req.body.id]));
-      return;
-    }
-    res.sendStatus(404);
-});
-
-app.post('/user', function(req,res) {
-  log += ("/user " + JSON.stringify(req.body) + "</br>");
-    if(req.body.id && users[req.body.id])
-    {
-      req.body.amazonUID?users[req.body.id].amazonUID = req.body.amazonUID:users[req.body.id].amazonUID;
-      res.send(JSON.stringify(users[req.body.id]));
-      return;
-    }
-    res.sendStatus(404);
-});
-
 app.post('/lock', function(req,res) {
 
 	log += ("/lock " + JSON.stringify(req.body) + "</br>");
@@ -1041,9 +1673,32 @@ app.post('/lock', function(req,res) {
     res.sendStatus(404);
 });
 
-app.get('/test-log', function(req, res) {  req.query.clear?(log = "", res.send("Log cleared.")):res.send("<html><body>" + log + "</body></html>");
+app.get('/user', function(req, res) {
+  log += ("/user " + JSON.stringify(req.query) + "</br>");
+  if(req.query.id && users[req.query.id])
+  {
+    req.query.userID?users[req.query.id].userID = req.query.userID:users[req.query.id].userID;
+    req.query.amazonUID?users[req.query.id].amazonUID = req.query.amazonUID:users[req.query.id].amazonUID;
+    res.send(JSON.stringify(users[req.query.id]));
+    return;
+  }
+  res.sendStatus(404);
 });
 
+app.post('/user', function(req,res) {
+  log += ("/user " + JSON.stringify(req.body) + "</br>");
+    if(req.body.id && users[req.body.id])
+    {
+      req.body.amazonUID?users[req.body.id].amazonUID = req.body.amazonUID:users[req.body.id].amazonUID;
+      res.send(JSON.stringify(users[req.body.id]));
+      return;
+    }
+    res.sendStatus(404);
+});
+*/
+app.get('/test-log', function(req, res) {  req.query.clear?(log = "", res.send("Log cleared.")):res.send("<html><body>" + log + "</body></html>");
+});
+/*
 app.get('/alexa-user', function(req, res) {
 	log += ("/alexa-user " + JSON.stringify(req.query) + "</br>");
 	let user = users.find(user => user.amazonUID == req.query.aUID);
@@ -1070,9 +1725,6 @@ app.post('/alexa-user', function(req, res) {
 	}
 	else 
 		res.send({"succ": false, "error": 3, "message": "User not found"});
-});
-
-app.post('/test-body-arr', function(req, res) {	res.send(req.body.arr);
 });
 
 app.post('/alexa',function(req,res) {
@@ -1106,35 +1758,6 @@ app.post('/alexa',function(req,res) {
 
     if(lock.mode == MODE.fitness)
     {
-    	/*
-      if(lock.curQuestion < lock.qa.length  && dateIn(cd,lock))
-      {
-        if(req.body.answer && req.body.answer == lock.qa[lock.curQuestion].val)
-        {
-          ++lock.curQuestion;
-          if(lock.curQuestion < lock.qa.length)
-          {
-            res.send({"succ":true, "error": 0, "question": lock.qa[lock.curQuestion].key});
-            return;
-          }
-        }
-        else if(!req.body.answer)
-        {
-          res.send({"succ": false, "error": 4, "message": "No answer", "question": lock.qa[lock.curQuestion].key});
-          return;
-        }
-        else if(!(req.body.answer == lock.qa[lock.curQuestion].val))
-        {
-          res.send({"succ": false, "error": 5, "message": "Wrong answer", "question": lock.qa[lock.curQuestion].key});
-          return;
-        }
-        else
-        {
-          res.send({"succ": false, "error": 255, "message": "Something wrong. Try again.", "question": lock.qa[lock.curQuestion].key});
-          return;
-        }
-      }
-      */
       lock.curQuestion = 0;
 
       req.body.setTimeN?(lock.setTime.n = parseInt(req.body.setTimeN), lock.command.setTimeN = parseInt(req.body.setTimeN)):1==1;
@@ -1271,12 +1894,14 @@ app.post('/alexa',function(req,res) {
     }
   }
 });
-
+*/
 app.get('/', function (req, res) {  res.sendFile(path.join(__dirname+'/index.html'));
 });
 app.get('/inDev.jpg', function(req, res) { res.sendFile(path.join(__dirname + '/inDev.jpg'))})
 // error handling
-app.use(function(err, req, res, next) {  console.error(err.stack);  res.status(500).send('Something bad happened!');
+app.use(function(err, req, res, next) {  
+	console.error(err.stack);  
+	res.status(500).send('Something bad happened!');
 });
 
 writeTestData();
