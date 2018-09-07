@@ -818,6 +818,10 @@ app.post('/register-temp-locks', async function(req, res) {
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
 };
 
+function deepCopy(from, to) {
+
+};
+
 function pushCommand(from, to) {
 	/*
 	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
@@ -922,9 +926,10 @@ function pushCommand(from, to) {
 	}
 	from.updateLock?to.command.updateLock = 1:1==1;
 	*/
-	console.log(to);
-	let command = JSON.parse(to.command);
-
+	let command = {};
+	let parsed = JSON.parse(to.command);
+	Object.getOwnPropertyNames(parsed).forEach(prop => command[prop] = parsed[prop]);
+	
 	from.hubName?command.hubName = from.hubName:1==1;
 	from.signalLock?command.signalLock = from.signalLock:1==1;
 	from.findLocks?command.findLocks = from.findLocks:1==1;
@@ -936,10 +941,9 @@ function pushCommand(from, to) {
 	from.signal?command.signal = from.signal:1==1;
 	from.PIN?command.PIN = from.PIN:1==1;
 	from.mode?command.mode = from.mode:1==1;
-	from.updateLock?command.updateLock = 1:1==1;
-
+	from.updateLock?command.updateLock = 1:1==1;	
 	(from.setTimeN && from.setTimeM && from.setTimeH)?(command.setTimeN = parseInt(from.setTimeN), command.setTimeM = parseInt(from.setTimeM), command.setTimeH = parseInt(from.setTimeH)):1==1;
-
+	//console.log(command);
 	if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && (from.setCloseTimeN == from.setOpenTimeN))
 	{
 		let arr,dest = [];
@@ -1013,8 +1017,8 @@ function pushCommand(from, to) {
 		}
 		arr.forEach(el => dest.push(el));
 	}
-
-	to.command = JSON.stringify(command);
+	return JSON.stringify(command);
+	//to.command = JSON.stringify(command);
 };
 
 app.post('/push-command', async function(req,res) {
@@ -1072,11 +1076,11 @@ app.post('/push-command', async function(req,res) {
 
 	if(!req.body.lockID)
 	{
-		pushCommand(req.body, hub);
+		let command = pushCommand(req.body, hub);
+		console.log(hub.command);
+		await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"command": command}}).exec();
 
-		await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"command": hub.command}}).exec();
-
-		res.send({"error": 0, "msg": "Command added", "command": hub.command});
+		res.send({"error": 0, "msg": "Command added", "command": command});
 		return;
 	}
 
@@ -1093,9 +1097,9 @@ app.post('/push-command', async function(req,res) {
 		return;
 	}
 
-	pushCommand(req.body, lock);
-	await DBLock.findOneAndUpdate({"lockID": req.body.lockID}, {$set: {"command": lock.command}}).exec();
-	res.send({"error": 0, "msg": "Command added", "command": lock.command});
+	let command = pushCommand(req.body, lock);
+	await DBLock.findOneAndUpdate({"lockID": req.body.lockID}, {$set: {"command": command}}).exec();
+	res.send({"error": 0, "msg": "Command added", "command": command});
 });
 
 app.get('/push-command', async function(req,res) {
@@ -1199,12 +1203,12 @@ async function updateHub(from, hub) {
 async function getCommand(hub) {
 	let resp = {};
 	let command = JSON.parse(hub.command);
-	resp.hub = (Object.keys(command).length === 0)?undefined:command;
+	resp.hub = (Object.getOwnPropertyNames(command).length === 0)?undefined:command;
 	await DBHub.findOneAndUpdate({"hubID": hub.hubID}, {$set: {"command": JSON.stringify({})}}).exec();
 	resp.locks = [];
 	hub.locks.forEach(async (lock) => {
 		command = JSON.parse(lock.command); 
-		if(Object.keys(lock.command).length == 0) {
+		if(Object.getOwnPropertyNames(command).length > 0) {
 			command.UUID = lock.lockID; 
 			resp.locks.push(command);
 			await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: {"command": JSON.stringify({})}}).exec();
