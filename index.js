@@ -360,7 +360,7 @@ app.post('/command-done', async function(req, res) {
 	Object.getOwnPropertyNames(req.body.command).forEach(a => command[a] = req.body.command[a]);
 
 	let set = {};
-	if(command.success.locks)
+	if(command.success && command.success.locks)
 		await Promise.all(command.success.locks.map(async (lock) => {
 			let UUID = lock.UUID;
 			delete lock.UUID;
@@ -371,11 +371,11 @@ app.post('/command-done', async function(req, res) {
 		}));
 	set = {};
 	set.commandProcessed = JSON.stringify(command);
-	if(command.success.hub)
+	if(command.success && command.success.hub)
 		command.success.hub.hubName?set.hubName = command.success.hub.hubName:1==1;
 		//Object.getOwnPropertyNames(hub).forEach(a => set[a] = command.success.hub[a]);
 	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: set});
-	
+
 	res.send({"error": 0, "msg": "Command added"});
 });
 
