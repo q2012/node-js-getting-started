@@ -357,7 +357,43 @@ app.post('/command-done', async function(req, res) {
 	let command = JSON.parse(hub.commandProcessed);
 	if(command.end)
 		command = {};
-	Object.getOwnPropertyNames(req.body.command).forEach(a => command[a] = req.body.command[a]);
+
+	console.log(JSON.stringify(command));
+	if(req.body.command.success)
+	{
+		command.success?1==1:command.success = {};
+		if(req.body.command.success.hub)
+		{
+			command.success.hub?1==1:command.success.hub = {};
+			Object.getOwnPropertyNames(req.body.command.success.hub).forEach(a => command.success.hub[a] = req.body.command.success.hub[a]);
+		}
+		if(req.body.command.success.locks)
+		{
+			command.success.locks?1==1:command.success.locks = [];
+			req.body.command.success.locks.forEach(lock => {
+				let lk = command.success.locks.find(l => l.UUID == lock.UUID);
+				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.success.locks.push(lk);
+			});
+		}
+	}
+	if(req.body.command.fail)
+	{
+		command.fail?1==1:command.fail = {}; 
+		if(req.body.command.fail.hub)
+		{
+			command.fail.hub?1==1:command.fail.hub = {};
+			Object.getOwnPropertyNames(req.body.command.fail.hub).forEach(a => command.fail.hub[a] = req.body.command.fail.hub[a]);
+		}
+		if(req.body.command.fail.locks)
+		{
+			command.fail.locks?1==1:command.fail.locks = [];
+			req.body.command.fail.locks.forEach(lock => {
+				let lk = command.fail.locks.find(l => l.UUID == lock.UUID);
+				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.fail.locks.push(lk);
+			});
+		}
+	}
+	console.log(JSON.stringify(command));
 
 	let set = {};
 	if(command.success && command.success.locks)
