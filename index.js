@@ -869,10 +869,6 @@ app.post('/register-temp-locks', async function(req, res) {
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
 };
 
-function deepCopy(from, to) {
-
-};
-
 function pushCommand(from, to) {
 	/*
 	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
@@ -1385,12 +1381,12 @@ async function updateLock(from, lock) {
 		set.time.m = parseInt(from.timeM);
 		set.time.h = parseInt(from.timeH);
 		set.time.n = parseInt(from.timeN);
-		let day = lock.time.n == 7?0:lock.time.n;
+		let day = set.time.n == 7?0:set.time.n;
 
 		let cd = new Date();
 		let ms = cd.getTime();
-		cd.setUTCHours(lock.time.h);
-		cd.setUTCMinutes(lock.time.m);
+		cd.setUTCHours(set.time.h);
+		cd.setUTCMinutes(set.time.m);
 		cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-day));
 		set.shift = ms - cd.getTime();
 	}
@@ -1445,8 +1441,8 @@ async function updateLock(from, lock) {
 		updateOpenCloseTime(set.openCloseTime.Sunday, from.Sunday.split(" "));
 	}
 	Object.keys(set.openCloseTime).length == 0?set.openCloseTime = undefined:1==1;
-
-	return await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: set}).exec();
+	await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: set}).exec();
+	return {"error": 0, "msg": "Lock updated"};
 };
 /*
 app.post('/get-command', function(req,res) {
@@ -1543,8 +1539,7 @@ app.get('/update-lock', async function(req, res) {
 		res.send({"error": 1, "msg": "Lock not found"});
 		return;
 	}
-	lock = await updateLock(req.query, lock);
-	res.send(lock);
+	res.send(await updateLock(req.query, lock));
 });
 
 app.post('/update-lock', async function(req, res) {
@@ -1570,8 +1565,7 @@ app.post('/update-lock', async function(req, res) {
 		res.send({"error": 1, "msg": "Lock not found"});
 		return;
 	}
-	lock = await updateLock(req.body, lock);
-	res.send(lock);
+	res.send(await updateLock(req.body, lock));
 });
 
 async function getUser(ID, AUID) {
