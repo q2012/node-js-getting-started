@@ -354,13 +354,28 @@ app.post('/command-done', async function(req, res) {
 	{
 		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
 	}
-	console.log(hub.commandProcessed);
 	let command = JSON.parse(hub.commandProcessed);
 	if(command.end)
 		command = {};
 	Object.getOwnPropertyNames(req.body.command).forEach(a => command[a] = req.body.command[a]);
-	console.log(JSON.stringify(command));
-	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"commandProcessed": JSON.stringify(command)}});
+
+	let set = {};
+	if(command.success.locks)
+		await Promise.all(command.success.locks.map(async (lock) => {
+			let UUID = lock.UUID;
+			delete lock.UUID;
+			Object.getOwnPropertyNames(lock).forEach(a => set[a] = lock[a]);
+			console.log(set);
+			await DBLock.findOneAndUpdate({"lockID": UUID}, {$set: set}).exec();
+			lock.UUID = UUID;
+		}));
+	set = {};
+	set.commandProcessed = JSON.stringify(command);
+	if(command.success.hub)
+		command.success.hub.hubName?set.hubName = command.success.hub.hubName:1==1;
+		//Object.getOwnPropertyNames(hub).forEach(a => set[a] = command.success.hub[a]);
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: set});
+	
 	res.send({"error": 0, "msg": "Command added"});
 });
 
@@ -929,7 +944,7 @@ function pushCommand(from, to) {
 	let command = {};
 	let parsed = JSON.parse(to.command);
 	Object.getOwnPropertyNames(parsed).forEach(prop => command[prop] = parsed[prop]);
-	
+
 	from.hubName?command.hubName = from.hubName:1==1;
 	from.signalLock?command.signalLock = from.signalLock:1==1;
 	from.findLocks?command.findLocks = from.findLocks:1==1;
@@ -1077,7 +1092,6 @@ app.post('/push-command', async function(req,res) {
 	if(!req.body.lockID)
 	{
 		let command = pushCommand(req.body, hub);
-		console.log(hub.command);
 		await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"command": command}}).exec();
 
 		res.send({"error": 0, "msg": "Command added", "command": command});
@@ -1156,8 +1170,8 @@ app.get('/push-command', async function(req,res) {
 
 	if(!req.query.lockID)
 	{
-		pushCommand(req.query, hub);
-		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"command": hub.command}}).exec();
+		let command = pushCommand(req.query, hub);
+		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"command": command}}).exec();
 		res.send({"error": 0, "msg": "Command added", "command": hub.command});
 		return;
 	}
@@ -1175,8 +1189,8 @@ app.get('/push-command', async function(req,res) {
 		return;
 	}
 
-	pushCommand(req.query, lock);
-	await DBLock.findOneAndUpdate({"lockID": req.query.lockID}, {$set: {"command": lock.command}}).exec();
+	let command = pushCommand(req.query, lock);
+	await DBLock.findOneAndUpdate({"lockID": req.query.lockID}, {$set: {"command": command}}).exec();
 	res.send({"error": 0, "msg": "Command added", "command": lock.command});
 	res.send(lock.command);
 });
