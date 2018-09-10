@@ -107,6 +107,7 @@ function Lock(lockID, lockName) {
   this.state = 'close';
   this.setOpen;
   this.time = new Time(0,0);
+  this.tempTime = new Time(0,0);
   this.setTime = new Time(0,0);
   this.shift = 0;
   this.mode = MODE.fitness;
@@ -358,7 +359,6 @@ app.post('/command-done', async function(req, res) {
 	if(command.end)
 		command = {};
 
-	console.log(JSON.stringify(command));
 	if(req.body.command.success)
 	{
 		command.success?1==1:command.success = {};
@@ -393,15 +393,48 @@ app.post('/command-done', async function(req, res) {
 			});
 		}
 	}
-	console.log(JSON.stringify(command));
+	command.end = req.body.command.end?req.body.command.end:false;
 
 	let set = {};
 	if(command.success && command.success.locks)
 		await Promise.all(command.success.locks.map(async (lock) => {
+			set = {};
 			let UUID = lock.UUID;
 			delete lock.UUID;
 			Object.getOwnPropertyNames(lock).forEach(a => set[a] = lock[a]);
-			console.log(set);
+			if(set.timeH || set.timeN || set.timeM)
+			{
+				if(lock.time.m != 99 && lock.time.h != 99 && lock.time.n != 99)
+				{
+					lock.time.h = 99;
+					lock.time.m = 99;
+					lock.time.n = 99;
+					lock.tempTime.h = 99;
+					lock.tempTime.m = 99;
+					lock.tempTime.n = 99;
+				}
+				set.timeH?lock.tempTime.h = set.timeH:1==1;
+				set.timeN?lock.tempTime.n = set.timeN:1==1;
+				set.timeM?lock.tempTime.m = set.timeM:1==1;
+				if(lock.tempTime.h != 99 && lock.tempTime.n != 99 && lock.tempTime.m != 99)
+				{
+					set.time = {};
+					set.time.m = parseInt(lock.tempTime.m);
+					set.time.h = parseInt(lock.tempTime.h);
+					set.time.n = parseInt(lock.tempTime.n);
+					let day = set.time.n == 7?0:set.time.n;
+
+					let cd = new Date();
+					let ms = cd.getTime();
+					cd.setUTCHours(set.time.h);
+					cd.setUTCMinutes(set.time.m);
+					cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-day));
+					set.shift = ms - cd.getTime();
+				}
+				delete set.timeH;
+				delete set.timeM;
+				delete set.timeN;
+			}
 			await DBLock.findOneAndUpdate({"lockID": UUID}, {$set: set}).exec();
 			lock.UUID = UUID;
 		}));
