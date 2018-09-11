@@ -137,6 +137,7 @@ function OpenCloseTime() {
 	this.Friday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
 	this.Saturday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
 	this.Sunday = [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()];
+	this.length = 4;
 };
 
 function Hub(hubID,hubName) {
@@ -350,10 +351,12 @@ app.post('/command-done', async function(req, res) {
 	if(!hub)
 	{
 		res.send({"error": 1, "msg": "Hub not found"});
+		return;
 	}
 	if(!req.body.command)
 	{
 		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
+		return;
 	}
 	let command = JSON.parse(hub.commandProcessed);
 	if(command.end)
@@ -372,7 +375,7 @@ app.post('/command-done', async function(req, res) {
 			command.success.locks?1==1:command.success.locks = [];
 			req.body.command.success.locks.forEach(lock => {
 				let lk = command.success.locks.find(l => l.UUID == lock.UUID);
-				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.success.locks.push(lk);
+				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.success.locks.push(lock);
 			});
 		}
 	}
@@ -389,14 +392,14 @@ app.post('/command-done', async function(req, res) {
 			command.fail.locks?1==1:command.fail.locks = [];
 			req.body.command.fail.locks.forEach(lock => {
 				let lk = command.fail.locks.find(l => l.UUID == lock.UUID);
-				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.fail.locks.push(lk);
+				lk?Object.getOwnPropertyNames(lock).forEach(a => lk[a] = lock[a]):command.fail.locks.push(lock);
 			});
 		}
 	}
 	command.end = req.body.command.end?req.body.command.end:false;
-
 	let set = {};
 	if(command.success && command.success.locks)
+	{
 		await Promise.all(command.success.locks.map(async (lock) => {
 			set = {};
 			let UUID = lock.UUID;
@@ -438,6 +441,7 @@ app.post('/command-done', async function(req, res) {
 			await DBLock.findOneAndUpdate({"lockID": UUID}, {$set: set}).exec();
 			lock.UUID = UUID;
 		}));
+	}
 	set = {};
 	set.commandProcessed = JSON.stringify(command);
 	if(command.success && command.success.hub)
@@ -1237,7 +1241,7 @@ app.get('/push-command', async function(req,res) {
 	{
 		let command = pushCommand(req.query, hub);
 		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"command": command}}).exec();
-		res.send({"error": 0, "msg": "Command added", "command": hub.command});
+		res.send({"error": 0, "msg": "Command added", "command": command});
 		return;
 	}
 
@@ -1256,8 +1260,7 @@ app.get('/push-command', async function(req,res) {
 
 	let command = pushCommand(req.query, lock);
 	await DBLock.findOneAndUpdate({"lockID": req.query.lockID}, {$set: {"command": command}}).exec();
-	res.send({"error": 0, "msg": "Command added", "command": lock.command});
-	res.send(lock.command);
+	res.send({"error": 0, "msg": "Command added", "command": command});
 });
 
 async function updateHub(from, hub) {
