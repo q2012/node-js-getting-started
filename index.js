@@ -325,12 +325,90 @@ app.get('/command-done', async function(req, res) {
 	}	
 	let command = JSON.parse(hub.commandProcessed);
 	res.send(command);
-	if(command.end)
+	//if(command.end)
 		await DBHub.findOneAndUpdate({"hubID": req.query.hubID}, {$set: {"commandProcessed": JSON.stringify({})}});
 });
 
 app.post('/command-done', async function(req, res) {
-	log += ("/command-done " + JSON.stringify(req.body) + "</br>");
+	let hub = await DBHub.findOne({"hubID": req.body.hubID}).exec();
+	if(!hub)
+	{
+		res.send({"error": 1, "msg": "Hub not found"});
+		return;
+	}
+	if(!req.body.command)
+	{
+		res.send({"error": 9, "msg": "Not enough data. Command is not provided."});
+		return;
+	}
+	let command = JSON.parse(hub.commandProcessed);
+	let set = {};
+	if(req.body.command.success)
+	{
+		command.success?1==1:command.success = [];
+		req.body.command.success.forEach(comm => command.success.push(comm));
+		await Promise.all(command.success.map(async (lock) => {
+			set = {};
+			if(lock.UUID == "hub")
+			{
+				lock.hubName?await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"hubName": lock.hubName}}):1==1;
+				return;
+			}
+			let UUID = lock.UUID;
+			delete lock.UUID;
+			Object.getOwnPropertyNames(lock).forEach(a => set[a] = lock[a]);
+			if(set.timeH || set.timeN || set.timeM)
+			{
+				if(lock.time.m != 99 && lock.time.h != 99 && lock.time.n != 99)
+				{
+					lock.time.h = 99;
+					lock.time.m = 99;
+					lock.time.n = 99;
+					lock.tempTime.h = 99;
+					lock.tempTime.m = 99;
+					lock.tempTime.n = 99;
+				}
+				set.timeH?lock.tempTime.h = set.timeH:1==1;
+				set.timeN?lock.tempTime.n = set.timeN:1==1;
+				set.timeM?lock.tempTime.m = set.timeM:1==1;
+				if(lock.tempTime.h != 99 && lock.tempTime.n != 99 && lock.tempTime.m != 99)
+				{
+					set.time = {};
+					set.time.m = parseInt(lock.tempTime.m);
+					set.time.h = parseInt(lock.tempTime.h);
+					set.time.n = parseInt(lock.tempTime.n);
+					let day = set.time.n == 7?0:set.time.n;
+
+					let cd = new Date();
+					let ms = cd.getTime();
+					cd.setUTCHours(set.time.h);
+					cd.setUTCMinutes(set.time.m);
+					cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-day));
+					set.shift = ms - cd.getTime();
+				}
+				delete set.timeH;
+				delete set.timeM;
+				delete set.timeN;
+			}
+			await DBLock.findOneAndUpdate({"lockID": UUID}, {$set: set}).exec();
+			lock.UUID = UUID;
+		}));
+
+	}
+	if(req.body.command.fail)
+	{
+		command.fail?1==1:command.fail = [];
+		req.body.command.fail.forEach(comm => command.fail.push(comm));
+	}
+
+	set = {};
+	set.commandProcessed = JSON.stringify(command);
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: set});
+	res.send({"error": 0, "msg": "Command added"});
+});
+
+app.post('/command-done-old', async function(req, res) {
+	log += ("/command-done-old " + JSON.stringify(req.body) + "</br>");
 	/*
 	let hub = hubs.find(hub => hub.hubID == req.body.hubID);
 	if(!hub)
@@ -1025,11 +1103,17 @@ function pushCommand(from, to) {
 	from.signal?command.signal = from.signal:1==1;
 	from.PIN?command.PIN = from.PIN:1==1;
 	from.mode?command.mode = from.mode:1==1;
-	from.updateLock?command.updateLock = 1:1==1;	
+	from.updateLock?command.updateLock = 1:1==1;
 	(from.setTimeN && from.setTimeM && from.setTimeH)?(command.setTimeN = parseInt(from.setTimeN), command.setTimeM = parseInt(from.setTimeM), command.setTimeH = parseInt(from.setTimeH)):1==1;
-	//console.log(command);
-	if(from.setCloseTimeH && from.setCloseTimeM && from.setCloseTimeN && from.setOpenTimeH && from.setOpenTimeM && from.setOpenTimeN && (from.setCloseTimeN == from.setOpenTimeN))
+
+	if(from.setOpenCloseTime)
 	{
+		
+	}
+
+	if(from.setOpenCloseTime)
+	{
+
 		let arr,dest = [];
 		if(!command.openCloseTime)
 			command.openCloseTime = {};
@@ -1102,7 +1186,6 @@ function pushCommand(from, to) {
 		arr.forEach(el => dest.push(el));
 	}
 	return JSON.stringify(command);
-	//to.command = JSON.stringify(command);
 };
 
 app.post('/push-command', async function(req,res) {
