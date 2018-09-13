@@ -973,12 +973,15 @@ app.post('/register-temp-locks', async function(req, res) {
 		return;
 	}
 
-	hub.command.tempLocks = req.body.tempLocks;
+	let command = {};
+	let parsed = JSON.parse(hub.command);
+	Object.getOwnPropertyNames(parsed).forEach(prop => command[prop] = parsed[prop]);
+	command.tempLocks = req.body.tempLocks;
 	//await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": req.body.tempLocks, "command": JSON.stringify(hub.command)}}).exec();
-	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": [], "command": JSON.stringify(hub.command)}}).exec();
-	hub.command.error = 0;
-	hub.command.msg = "Locks array to add added";
-	res.send(hub.command);
+	await DBHub.findOneAndUpdate({"hubID": req.body.hubID}, {$set: {"tempLocks": [], "command": JSON.stringify(command)}}).exec();
+	command.error = 0;
+	command.msg = "Locks array to add added";
+	res.send(command);
 }); 
 
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
