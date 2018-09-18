@@ -53,16 +53,12 @@ let lockShema = mongoose.Schema({
 	PIN: String,
 	battery: String,
 	signal: String,
-	openCloseTime: {
-		Monday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Tuesday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Wednesday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Thursday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Friday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Saturday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		Sunday: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}],
-		length: Number
-	},
+	openCloseTime: [
+		{
+			day: String,
+			openCloseTime: [{lock_h: Number,lock_m: Number,unlock_h: Number,unlock_m: Number}]
+		}
+	],
 	qa: [{val: String, key: String}],
 	curQuestion: Number,
 	command: String
@@ -101,6 +97,18 @@ function Pair(key, val) {
   this.val = val;
 };
 
+function createOpenCloseTime() {
+	let arr = [];
+	arr.push({day: "Monday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Tuesday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Wednesday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Thursday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Friday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Saturday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	arr.push({day: "Sunday", openCloseTime: [new OneOpenClose(), new OneOpenClose(), new OneOpenClose(), new OneOpenClose()]});
+	return arr;
+};
+
 function Lock(lockID, lockName) {
   this.lockID = lockID;
   this.lockName = lockName;
@@ -115,7 +123,7 @@ function Lock(lockID, lockName) {
   this.battery;  
   this.signal;
   
-  this.openCloseTime = new OpenCloseTime(),
+  this.openCloseTime = createOpenCloseTime(),
 
   this.qa = [];
   this.curQuestion = 0;
@@ -987,8 +995,29 @@ app.post('/register-temp-locks', async function(req, res) {
 function checkLengthOpenCloseArr(arr, count) {	return arr.filter(el => el.lock_h == 99).length >= count;
 };
 
+function checkOpenCloseTime(openCloseTime, original) {
+	let arr = [];
+	openCloseTime.forEach(fromDay => {
+		let day = original.find(day => fromDay.day == day.day);
+		if(!fromDay.openCloseTime.every(time => {
+
+			let n = day.openCloseTime.find(time2 => {
+				return time.lock_h == time2.lock_h &&
+					time.lock_m == time2.lock_m &&
+					time.unlock_h == time2.unlock_h &&
+					time.unlock_m == time2.unlock_m;
+			});
+			return n;
+		}))
+		{
+			arr.push(fromDay);
+		}
+	});
+	return arr;
+};
+
 function pushCommand(from, to) {
-	/*
+/*
 	from.hubName?(to.command.hubName = from.hubName, to.hubName = from.hubName):1==1;
 	from.signalLock?to.command.signalLock = from.signalLock:1==1;
 	from.findLocks?to.command.findLocks = from.findLocks:1==1;
@@ -1090,7 +1119,7 @@ function pushCommand(from, to) {
 		arr.forEach(el => dest.push(el));
 	}
 	from.updateLock?to.command.updateLock = 1:1==1;
-	*/
+*/
 	let command = {};
 	let parsed = JSON.parse(to.command);
 	Object.getOwnPropertyNames(parsed).forEach(prop => command[prop] = parsed[prop]);
@@ -1111,83 +1140,24 @@ function pushCommand(from, to) {
 
 	if(from.setOpenCloseTime)
 	{
-		
-	}
-
-	if(from.setOpenCloseTime)
-	{
-
-		let arr,dest = [];
-		if(!command.openCloseTime)
+		let arr = checkOpenCloseTime(from.setOpenCloseTime, to.openCloseTime);
+		if(arr.length > 0)
+		{
 			command.openCloseTime = {};
-		switch(parseInt(from.setCloseTimeN))
-		{
-			case 1:
-				arr = to.openCloseTime.Monday;
-				command.openCloseTime.Monday = [];
-				dest = command.openCloseTime.Monday;
-				break;
-			case 2:
-				arr = to.openCloseTime.Tuesday;
-				command.openCloseTime.Tuesday = [];
-				dest = command.openCloseTime.Tuesday;
-				break;
-			case 3:
-				arr = to.openCloseTime.Wednesday;
-				command.openCloseTime.Wednesday = [];
-				dest = command.openCloseTime.Wednesday;
-				break;
-			case 4:
-				arr = to.openCloseTime.Thursday;
-				command.openCloseTime.Thursday = [];
-				dest = command.openCloseTime.Thursday;
-				break;
-			case 5:
-				arr = to.openCloseTime.Friday;
-				command.openCloseTime.Friday = [];
-				dest = command.openCloseTime.Friday;
-				break;
-			case 6:
-				arr = to.openCloseTime.Saturday;
-				command.openCloseTime.Saturday = [];
-				dest = command.openCloseTime.Saturday;
-				break;
-			case 7:
-				arr = to.openCloseTime.Sunday;
-				command.openCloseTime.Sunday = [];
-				dest = command.openCloseTime.Sunday;
-				break;
-			default:
-				arr = undefined;
+			arr.forEach( day => {
+				let str = "";
+				day.openCloseTime.forEach(time => {
+					str += time.lock_h;
+					str += time.lock_m;
+					str += time.unlock_h;
+					str += time.unlock_m;
+					str += ' ';
+				});
+				command.openCloseTime[day.day] = str;
+			});
 		}
-
-		if(arr && from.setOpenCloseTimeDel)
-		{
-			let ind = arr.findIndex(time => (time.lock_h == from.setCloseTimeH && time.lock_m == from.setCloseTimeM && time.unlock_h == from.setOpenTimeH && time.unlock_m == from.setOpenTimeM));
-			if(ind >= 0)
-			{
-				arr.splice(ind,1);
-				let atom = {};
-				atom.lock_h = 99;
-				atom.lock_m = 99;
-				atom.unlock_h = 99;
-				atom.unlock_m = 99;
-				arr.push(atom);
-			}
-		}
-		else if(arr && checkLengthOpenCloseArr(arr,1))
-		{
-			let atom = {};
-			atom.lock_h = parseInt(from.setCloseTimeH);
-			atom.lock_m = parseInt(from.setCloseTimeM);
-			atom.unlock_h = parseInt(from.setOpenTimeH);
-			atom.unlock_m = parseInt(from.setOpenTimeM);
-
-			arr.splice(arr.findIndex(time => time.lock_h == 99),1);
-			arr.push(atom);
-		}
-		arr.forEach(el => dest.push(el));
 	}
+
 	return JSON.stringify(command);
 };
 
@@ -1439,7 +1409,7 @@ app.get('/get-full-command', async function(req, res) {
 });
 
 
-function updateOpenCloseTime(to, from) {
+function updateOpenCloseTime(from, to) {
 	from.forEach((el,i) => {
 		let k = {};
 		k.lock_h = parseInt(el.substr(0,2));
@@ -1513,56 +1483,16 @@ async function updateLock(from, lock) {
 		set.shift = ms - cd.getTime();
 	}
 
-	/*	
-	await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: {
-		"lockName": from.lockName?from.lockName:lock.lockName,
-	    "state: "from.state?from.state:lock.state,
-	    "mode": from.mode?from.mode:lock.mode,
-	    "PIN": from.PIN?from.PIN:lock.PIN,
-	    "battery": from.battery?from.battery:lock.battery,
-	    "time": {
-	    	"n": (from.timeN && from.timeH && from.timeM)?from.timeN:lock.time.n,
-	    	"h": (from.timeN && from.timeH && from.timeM)?from.timeH:lock.time.h,
-	    	"m": (from.timeN && from.timeH && from.timeM)?from.timeM:lock.time.m
-	    },
-	    "shift": (from.timeN && from.timeH && from.timeM)?
-	    	(cd.setUTCHours(from.timeH),
-	    	cd.setUTCMinutes(from.timeM),
-	    	cd.setUTCDate(cd.getUTCDate() - (cd.getUTCDay()-(from.timeN == 7?0:from.timeN))),
-	    	ms - cd.getTime()):lock.shift,
-	    ""
-	}}).exec();*/
-
-	set.openCloseTime = {};
-	if(from.Monday) {
-		set.openCloseTime.Monday = [];
-		updateOpenCloseTime(set.openCloseTime.Monday, from.Monday.split(" "));
+	
+	if(from.openCloseTime)
+	{
+		set.openCloseTime = [];
+		from.openCloseTime.forEach(fromDay => {
+			let obj = {day: fromDay.day, openCloseTime: []};
+			updateOpenCloseTime(fromDay.str, obj.openCloseTime);
+			set.openCloseTime.push(obj);
+		});
 	}
-	if(from.Tuesday) {
-		set.openCloseTime.Tuesday = [];
-		updateOpenCloseTime(set.openCloseTime.Tuesday, from.Tuesday.split(" "));
-	}
-	if(from.Wednesday) {
-		set.openCloseTime.Wednesday = [];
-		updateOpenCloseTime(set.openCloseTime.Wednesday, from.Wednesday.split(" "));
-	}
-	if(from.Thursday) {
-		set.openCloseTime.Thursday = [];
-		updateOpenCloseTime(set.openCloseTime.Thursday, from.Thursday.split(" "));
-	}
-	if(from.Friday) {
-		set.openCloseTime.Friday = [];
-		updateOpenCloseTime(set.openCloseTime.Friday, from.Friday.split(" "));
-	}
-	if(from.Saturday) {
-		set.openCloseTime.Saturday = [];
-		updateOpenCloseTime(set.openCloseTime.Saturday, from.Saturday.split(" "));
-	}
-	if(from.Sunday) {
-		set.openCloseTime.Sunday = [];
-		updateOpenCloseTime(set.openCloseTime.Sunday, from.Sunday.split(" "));
-	}
-	Object.keys(set.openCloseTime).length == 0?set.openCloseTime = undefined:1==1;
 	await DBLock.findOneAndUpdate({"lockID": lock.lockID}, {$set: set}).exec();
 	return {"error": 0, "msg": "Lock updated"};
 };
