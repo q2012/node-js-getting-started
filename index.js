@@ -365,6 +365,25 @@ app.post('/command-done', async function(req, res) {
 			let UUID = lock.UUID;
 			delete lock.UUID;
 			Object.getOwnPropertyNames(lock).forEach(a => set[a] = lock[a]);
+			if(set.openCloseTime)
+			{
+				let arr = [];
+				let originalLock = await DBLock.findOne({"lockID": UUID}).exec();
+				originalLock.openCloseTime.forEach(time => {
+					if(set.openCloseTime[time.day])
+					{
+						let k = {};
+						k.day = time.day;
+						k.openCloseTime = [];
+						updateOpenCloseTime(set.openCloseTime[time.day].split(' '), k.openCloseTime);
+						arr.push(k);
+					}
+					else
+						arr.push(time);
+				});
+				set.openCloseTime = arr;
+			}
+
 			if(set.timeH || set.timeN || set.timeM)
 			{
 				if(lock.time.m != 99 && lock.time.h != 99 && lock.time.n != 99)
@@ -1152,7 +1171,7 @@ function pushCommand(from, to) {
 					str += (time.unlock_m > 10?time.unlock_m:'0' + time.unlock_m);
 					str += ' ';
 				});
-				command.openCloseTime[day.day] = str;
+				command.openCloseTime[day.day] = str.substr(0, str.length-1);
 			});
 		}
 	}
