@@ -401,7 +401,6 @@ app.post('/command-done', async function(req, res) {
 			await DBLock.findOneAndUpdate({"lockID": UUID}, {$set: set}).exec();
 			lock.UUID = UUID;
 		}));
-
 	}
 	if(req.body.command.fail)
 	{
@@ -1147,10 +1146,10 @@ function pushCommand(from, to) {
 			arr.forEach( day => {
 				let str = "";
 				day.openCloseTime.forEach(time => {
-					str += time.lock_h;
-					str += time.lock_m;
-					str += time.unlock_h;
-					str += time.unlock_m;
+					str += (time.lock_h > 10?time.lock_h:'0' + time.lock_h);
+					str += (time.lock_m > 10?time.lock_m:'0' + time.lock_m);
+					str += (time.unlock_h > 10?time.unlock_h:'0' + time.unlock_h);
+					str += (time.unlock_m > 10?time.unlock_m:'0' + time.unlock_m);
 					str += ' ';
 				});
 				command.openCloseTime[day.day] = str;
@@ -1489,7 +1488,7 @@ async function updateLock(from, lock) {
 		set.openCloseTime = [];
 		from.openCloseTime.forEach(fromDay => {
 			let obj = {day: fromDay.day, openCloseTime: []};
-			updateOpenCloseTime(fromDay.str, obj.openCloseTime);
+			updateOpenCloseTime(fromDay.openCloseTime.split(' '), obj.openCloseTime);
 			set.openCloseTime.push(obj);
 		});
 	}
