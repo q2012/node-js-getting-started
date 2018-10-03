@@ -606,8 +606,16 @@ app.post('/upload', upload.single('file'), async function(req, res) {
 	log += ("/upload</br>");
 	let file = (await File.find({}))[0];
 	file.file = fs.readFileSync(req.file.destination + req.file.filename);
-	await File.findOneAndUpdate({"_id": file._id}, {$set: {"file": file.file}}, function(err,doc,res) {});
-	hubs.forEach(hub => hub.command.firmwareUpdate = true);
+	await File.findOneAndUpdate({"_id": file._id}, {$set: {"file": file.file}});
+	let hubs = await DBHub.find({}).exec();
+	await Promise.all(hubs.map(async (hub) => {
+		let command = {};
+		let parsed = JSON.parse(hub.command);
+		Object.getOwnPropertyNames(parsed).forEach(prop => command[prop] = parsed[prop]);
+		command.firmwareUpdate = true;
+		command = JSON.stringify(command);
+		await DBHub.findOneAndUpdate({"hubID": hub.hubID}, {$set: {"command": command}}).exec();
+	}));
 	res.send("File uploaded");
 });
 
